@@ -96,7 +96,7 @@ if __name__ == '__main__':
         #if i==1:
         #    eig_sample=eigenimage
         #    print eig_sample
-        f=open('eigenimage'+str(i)+'.png', 'wb')
+        f=open('eigenimages/eigenimage'+str(i)+'.png', 'wb')
         win = map(np.uint16,eigenimage)
         writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
         writer.write(f, win)
