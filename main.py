@@ -14,7 +14,7 @@ from Wrapper import Wrapper,pix_size_AC,pix_size_AL
 import png
 from scipy import optimize as opt
 from skimage.feature import register_translation
-from sklearn import decomposition
+
 
 from Observation import Observation,twoD_Gaussian
 
@@ -56,43 +56,22 @@ if __name__ == '__main__':
     (N, F)=np.shape(input_matrix)
     print N,F
     
+    n_components=10
+    
+    from_library=False
+    comp=w.evaluate_PCA(w.observations, from_library=False, normalized=False)
     
     
-    
-    #normalizing data
-
-    in_mean=np.mean(input_matrix,0)
-    #in_stdv=np.std(input_matrix,0)
-
-    x_norm = (input_matrix-in_mean)
-    '''
-    # hand-made
-    x_t=np.transpose(input_matrix)
-    cov=x_t*input_matrix
-    ew,comp=np.linalg.eig(cov)
-    
-    
-    cumsum=sum(ew)
-    l_sum=0
-    for l in range(len(ew)):
-        l_sum+=ew[l]
-        if l_sum>0.999*cumsum:
-            break
-    print "dimension: " + str(l)
-    '''
-    
-    # PCA using sklearn
-    estimator=decomposition.PCA()
-    estimator.fit(x_norm)
-    comp=estimator.components_
-    
-    for i in range(10):
-        eigenimage=(np.reshape(comp[i,:], (12,18), order=0)-1)*65000/2+65000
+    for i in range(n_components):
+        if from_library==True:
+            eigenimage=(np.reshape(comp[i,:], (12,18), order=0)-1)*65000/2+65000
+        else:
+            eigenimage=(np.reshape(comp[:,i], (12,18), order=0)-1)*65000/2+65000
         eigenimage=np.array(eigenimage)
         shift, error, diffphase = register_translation(eigenimage,w.observations[0].window,1000)
         print shift[0]+5.5
         print shift[1]+8.5
-        print [w.observations[0].calCentroid_AC,w.observations[0].calCentroid_AL]
+        print [w.observations[i].calCentroid_AC,w.observations[i].calCentroid_AL]
         #if i==1:
         #    eig_sample=eigenimage
         #    print eig_sample

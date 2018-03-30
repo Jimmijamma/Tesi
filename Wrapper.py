@@ -187,5 +187,44 @@ class Wrapper(object):
             print "> Bin %d has %d elements" %(iterator,len(c))
             iterator+=1
         return collections
+    
             
+    def evaluate_PCA(self, collection, from_library=True,normalized=False):
+        
+        from sklearn import decomposition
+        
+        input_data=[]
+    
+        for o in collection:
+            flat_window=o.window.flatten()
+            input_data.append(flat_window)
+            
+        input_data=np.matrix(input_data)
+        
+        if normalized==True:
+            #normalizing data
+            in_mean=np.mean(input_data,0)
+            #in_stdv=np.std(input_data,0)
+            data = (input_data-in_mean)
+            #x_norm = (input_data-in_mean)/in_stdv
+        
+        else:
+            data=input_data
+            
+        if from_library==True:
+            # PCA using sklearn
+            estimator=decomposition.PCA()
+            estimator.fit(data)
+            comp=estimator.components_
+            
+        else:
+            # hand-made PCA
+            x_t=np.transpose(input_data)
+            cov=x_t*input_data
+            ew,comp=np.linalg.eig(cov)
+            
+        return comp
+            
+    
+        
             
