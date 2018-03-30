@@ -58,14 +58,14 @@ if __name__ == '__main__':
     
     
     
-    ''''
+    
     #normalizing data
 
     in_mean=np.mean(input_matrix,0)
-    in_stdv=np.std(input_matrix,0)
+    #in_stdv=np.std(input_matrix,0)
 
     x_norm = (input_matrix-in_mean)
-    
+    '''
     # hand-made
     x_t=np.transpose(input_matrix)
     cov=x_t*input_matrix
@@ -83,10 +83,10 @@ if __name__ == '__main__':
     
     # PCA using sklearn
     estimator=decomposition.PCA()
-    estimator.fit(input_matrix)
+    estimator.fit(x_norm)
     comp=estimator.components_
     
-    for i in range(8):
+    for i in range(10):
         eigenimage=(np.reshape(comp[i,:], (12,18), order=0)-1)*65000/2+65000
         eigenimage=np.array(eigenimage)
         shift, error, diffphase = register_translation(eigenimage,w.observations[0].window,1000)
