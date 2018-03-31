@@ -6,19 +6,14 @@ Created on 13 gen 2018
 import json
 import numpy as np
 import matplotlib as mpl 
-from scipy.linalg import decomp
 mpl.use('TkAgg')
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from Wrapper import Wrapper,pix_size_AC,pix_size_AL
+from Wrapper import Wrapper
 import png
 from scipy import optimize as opt
 from skimage.feature import register_translation
-
-
 from Observation import Observation,twoD_Gaussian
-
-
 
 
 if __name__ == '__main__':
@@ -45,23 +40,13 @@ if __name__ == '__main__':
         o.createImage(folder, filename, img_format) 
     '''
     
-    input_matrix=[]
-    
-    for o in w.observations:
-        flat_window=o.window.flatten()
-        input_matrix.append(flat_window)
-        
-    input_matrix=np.matrix(input_matrix)
-    
-    (N, F)=np.shape(input_matrix)
-    print N,F
-    
     n_components=10
     
     from_library=False
+    
     comp=w.evaluate_PCA(w.observations, from_library=False, normalized=False)
     
-    
+    '''
     for i in range(n_components):
         if from_library==True:
             eigenimage=(np.reshape(comp[i,:], (12,18), order=0)-1)*65000/2+65000
@@ -80,8 +65,20 @@ if __name__ == '__main__':
         writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
         writer.write(f, win)
         f.close()
+    '''
     
-  
+    cllctn=[]
+    for o in w.observations:
+        cllctn.append(o.window)
+    
+    mean_img= np.mean(cllctn, axis=0)
+
+    
+    f=open('mean_img.png', 'wb')
+    win = map(np.uint16,mean_img)
+    writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
+    writer.write(f, win)
+    f.close()
     
     '''
     err_AC=[]
@@ -116,27 +113,7 @@ if __name__ == '__main__':
     '''
 
     
-    '''
-    h=np.nan_to_num(h)
-    xe=xe[:-1]
-    ye=ye[:-1]
-    xe, ye = np.meshgrid(xe, ye)
-        
-    # initial guess of parameters (amplitude,dx,dy,sigma_x,sigma_y,theta,offset)
-    initial_guess = (5000,0,0,1,1,0,1)
-    # constraints for fitting ((lower bounds),(upper bounds))
-    bounds=((0,-9,-6,-np.inf,-np.inf,0,-np.inf),(500000,9,6,np.inf,np.inf,np.inf,np.inf))
-    
-    popt, pcov = opt.curve_fit(twoD_Gaussian, (xe, ye), h.ravel(),p0=initial_guess, bounds=bounds,maxfev=1000000)
-    
-    g=twoD_Gaussian((xe, ye), popt[0], popt[1], popt[2], popt[3], popt[4], popt[5], popt[6])
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(ye,xe,g.reshape(119,179)) 
-    fig.savefig('bhoooo.png')
-    
-    '''
     
     
  
