@@ -10,7 +10,7 @@ class MyUtil(object):
     '''
 
 
-    def __init__(self, params):
+    def __init__(self):
         '''
         Constructor
         '''
@@ -23,25 +23,25 @@ class MyUtil(object):
         
         
         
-        def AL_micron2pix(micrometers):
-            pix=micrometers*self.n_pixel_AL
-            pix=pix/self.sensor_size_AL
-            return pix
-        
-        def AC_micron2pix(micrometers):
-            pix=micrometers*self.n_pixel_AC
-            pix=pix/self.sensor_size_AC
-            return pix
-        
-        def AL_pix2micron(n_pixels):
-            micron=n_pixels*self.sensor_size_AL
-            micron=micron/self.n_pixel_AL
-            return micron
-        
-        def AC_pix2micron(n_pixels):
-            micron=n_pixels*self.sensor_size_AC
-            micron=micron/self.n_pixel_AC
-            return micron
+    def AL_micron2pix(self,micrometers):
+        pix=micrometers*self.n_pixel_AL
+        pix=pix/self.sensor_size_AL
+        return pix
+    
+    def AC_micron2pix(self,micrometers):
+        pix=micrometers*self.n_pixel_AC
+        pix=pix/self.sensor_size_AC
+        return pix
+    
+    def AL_pix2micron(self,n_pixels):
+        micron=n_pixels*self.sensor_size_AL
+        micron=micron/self.n_pixel_AL
+        return micron
+    
+    def AC_pix2micron(self,n_pixels):
+        micron=n_pixels*self.sensor_size_AC
+        micron=micron/self.n_pixel_AC
+        return micron
         
         
             

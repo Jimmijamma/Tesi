@@ -5,6 +5,7 @@ Created on 23 gen 2018
 '''
 import numpy as np
 import matplotlib as mpl 
+import Wrapper
 mpl.use('TkAgg')
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -189,7 +190,7 @@ class Wrapper(object):
         return collections
     
             
-    def evaluate_PCA(self, collection, from_library=True,normalized=False):
+    def evaluate_PCA(self, collection, from_library=True,normalized=False, n_components=6):
         
         from sklearn import decomposition
         
@@ -223,8 +224,36 @@ class Wrapper(object):
             cov=x_t*input_data
             ew,comp=np.linalg.eig(cov)
             
+            
+        import png
+        for i in range(n_components):
+            
+            if from_library==True:
+                eigenimage=(np.reshape(comp[i,:], (12,18), order=0)-1)*65000.0/2+65000
+            else:
+                eigenimage=(np.reshape(comp[:,i], (12,18), order=0)-1)*65000.0/2+65000
+            eigenimage=np.array(eigenimage)
+            
+            f=open('eigenimages/eigenimage'+str(i)+'.png', 'wb')
+            win = map(np.uint16,eigenimage)
+            writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
+            writer.write(f, win)
+            f.close()
+            
+        print "PCA computed successfully! First %d eigenimages stored in 'eigenimages' folder" % n_components
+            
         return comp
             
-    
+    def filterBadRegistration(self,collection):
+        new_collection=[]
+        count_errors=0
+        for o in collection:
+            if abs(o.calCentroid_AC-5.5)<1 and abs(o.calCentroid_AL-8.5)<1:
+                new_collection.append(o)
+            else:
+                count_errors+=1
+        print "Deleted %d wrong observations from collection" % count_errors
+        return new_collection
+                
         
             

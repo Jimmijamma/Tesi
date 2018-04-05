@@ -9,14 +9,17 @@ import matplotlib as mpl
 mpl.use('TkAgg')
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from Wrapper import Wrapper
+import Wrapper
 import png
 from scipy import optimize as opt
 from skimage.feature import register_translation
 from Observation import Observation,twoD_Gaussian
+from MyUtil import MyUtil
 
 
 if __name__ == '__main__':
+    
+    my_util=MyUtil()
     # path and format for the images
     folder='/Users/jimmijamma/Desktop/bho'
     filename=None
@@ -29,44 +32,25 @@ if __name__ == '__main__':
     
     print
     # loading the data structure and calling methods
-    w=Wrapper(json_obj)
+    w=Wrapper.Wrapper(json_obj)
     
-    '''
+
     w.divideTimeIntervals(3)
     
-    
+    '''
     # create images of the set of observations
     for o in w.observations:
         o.createImage(folder, filename, img_format) 
     '''
     
+    
+    # evaluating PCA
     n_components=10
-    
     from_library=False
+    comp=w.evaluate_PCA(w.observations, from_library=False, normalized=False, n_components=6)
     
-    comp=w.evaluate_PCA(w.observations, from_library=False, normalized=False)
     
     '''
-    for i in range(n_components):
-        if from_library==True:
-            eigenimage=(np.reshape(comp[i,:], (12,18), order=0)-1)*65000/2+65000
-        else:
-            eigenimage=(np.reshape(comp[:,i], (12,18), order=0)-1)*65000/2+65000
-        eigenimage=np.array(eigenimage)
-        shift, error, diffphase = register_translation(eigenimage,w.observations[0].window,1000)
-        print shift[0]+5.5
-        print shift[1]+8.5
-        print [w.observations[i].calCentroid_AC,w.observations[i].calCentroid_AL]
-        #if i==1:
-        #    eig_sample=eigenimage
-        #    print eig_sample
-        f=open('eigenimages/eigenimage'+str(i)+'.png', 'wb')
-        win = map(np.uint16,eigenimage)
-        writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
-        writer.write(f, win)
-        f.close()
-    '''
-    
     cllctn=[]
     for o in w.observations:
         cllctn.append(o.window)
@@ -80,22 +64,42 @@ if __name__ == '__main__':
     writer.write(f, win)
     f.close()
     
-    '''
-    err_AC=[]
-    err_AL=[]
-    for i in range(1,w.n_transits):
-        result1=[w.observations[0].calCentroid_AC, w.observations[0].calCentroid_AL]
-        result2=[w.observations[i].calCentroid_AC, w.observations[i].calCentroid_AL]
-        calResult= [ -(result2[0]-result1[0]), -(result2[1]-result1[1])]
-        shift, error, diffphase = register_translation(w.observations[0].window,w.observations[i].window,1000)
-        if shift[0]<=1.0 and shift[1]<=1.0: 
-            err_AC.append(abs(calResult[0]-shift[0]))
-            err_AL.append(abs(calResult[1]-shift[1]))
+    new_collection=w.filterBadRegistration(w.observations)
+    
+    
+    
+    rel_shift=[]
+    coor=[0,0]
+    for o in new_collection:
+        if o.id>0:
+            rel_shift.append([o.calCentroid_AC-coor[0],o.calCentroid_AL-coor[1]])
         else:
-            print "error " +str(i) + ": " + str(shift[0]) + " " + str(shift[1])
-        print "AC: " + str(np.mean(err_AC)*pix_size_AC)
-        print "AL: " + str(np.mean(err_AL)*pix_size_AL)
-       
+            rel_shift.append(coor)
+        coor=[o.calCentroid_AC,o.calCentroid_AL]
+        
+    
+    rel_shift_B=[]
+    lol=[0,0]
+    for i in range(len(new_collection)):
+        
+        shift, error, diffphase = register_translation(mean_img,new_collection[i].window,1000)
+        if i>0:
+            rel_shift_B.append([shift[0]-lol[0],shift[1]-lol[1]])
+        else:
+            rel_shift_B.append(lol)
+        lol=shift
+            
+    
+    errs_AC=[]
+    errs_AL=[]
+    for i in range(1,len(new_collection)):
+        errs_AC.append(abs(rel_shift_B[i][0]-rel_shift[i][0]))
+        errs_AL.append(abs(rel_shift_B[i][1]-rel_shift[i][1]))
+        
+    print my_util.AC_pix2micron((np.mean(errs_AC)))
+    print my_util.AL_pix2micron((np.mean(errs_AL)))
+    print
+    
     '''
          
     '''
