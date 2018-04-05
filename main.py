@@ -37,6 +37,7 @@ if __name__ == '__main__':
 
     w.divideTimeIntervals(3)
     
+    
     '''
     # create images of the set of observations
     for o in w.observations:
