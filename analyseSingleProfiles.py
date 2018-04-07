@@ -40,6 +40,8 @@ def display(images, titles=['']):
             plt.title(title)
     plt.tight_layout()
     fig.savefig('InterpolationComparison.png')
+    
+    
 
 if __name__ == '__main__':
     my_util=MyUtil()

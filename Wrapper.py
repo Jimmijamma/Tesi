@@ -62,7 +62,7 @@ class Wrapper(object):
             win=np.array(obs['window'])
             calCentroid_AC=obs['calCentroidAC']/pix_size_AC+5.5
             calCentroid_AL=obs['calCentroidAL']/pix_size_AL+8.5
-            o = Observation(self, obs['id'], np.swapaxes(win,0,1), obs['gating'], obs['transitid'], obs['timestamp'], calCentroid_AC, calCentroid_AL)
+            o = Observation(self, obs['id'], np.swapaxes(win,0,1), obs['gating'], obs['transitid'], obs['timestamp'], obs['ACmotion'], calCentroid_AC, calCentroid_AL)
             obs_list.append(o)
         return obs_list
         

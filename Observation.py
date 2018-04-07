@@ -27,7 +27,7 @@ class Observation(object):
     classdocs
     '''
 
-    def __init__(self, wrapper, id, window, gating, transitid, timestamp, calCentroid_AC=None, calCentroid_AL=None):
+    def __init__(self, wrapper, id, window, gating, transitid, timestamp, ACmotion, calCentroid_AC=None, calCentroid_AL=None):
         '''
         Constructor
         '''
@@ -43,6 +43,7 @@ class Observation(object):
         self.gating=gating
         self.timestamp=timestamp # ns
         self.transitid=transitid
+        self.ACmotion=ACmotion
         self.imgpath=None
         self.centroidCM=None
         self.centroidCF=None
