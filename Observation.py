@@ -43,6 +43,7 @@ class Observation(object):
         self.gating=gating
         self.timestamp=timestamp # ns
         self.transitid=transitid
+        self.imgpath=None
         self.centroidCM=None
         self.centroidCF=None
         self.totIntensity=None
@@ -50,7 +51,7 @@ class Observation(object):
                 
     def createImage(self, folder, filename, format):
         if filename==None:
-            filename=str(self.id) + "_" + str(self.timestamp)
+            filename= str(self.timestamp)
             total_path=folder + "/" + filename + "." + format
         else:
             total_path=folder + "/" + filename + str(self.id) + "." + format
@@ -60,6 +61,7 @@ class Observation(object):
         writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
         writer.write(f, win)
         f.close()
+        self.imgpath=total_path
         
     # function that evaluates centroid by fitting the window with a curve
     def evaluateCentroid_curveFit(self):
