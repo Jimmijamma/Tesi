@@ -23,6 +23,7 @@ from skimage.color import rgb2gray
 
 import matplotlib.pyplot as plt
 from dask.dataframe.tests.test_rolling import idx
+from conda._vendor.toolz.itertoolz import second
 
 # function to display images
 def display(images, titles=['']):
@@ -49,7 +50,7 @@ def display(images, titles=['']):
     plt.tight_layout()
     fig.savefig('InterpolationComparison.png')
     
-def fwhmROI(image,zero_padding=True):
+def detectROI(image,zero_padding=True):
     im=np.array(image)
     fwhm_list=[] # points of the ROI. For each row: (row_coordinate,first_column,last_column)
     idy=0
@@ -84,6 +85,55 @@ def fwhmROI(image,zero_padding=True):
       
     return ROI, row_interval, col_interval
 
+def analyseROI(ROI):
+    roi=np.array(ROI).astype(int).astype(float)
+    height=np.shape(roi)[0]
+    width=np.shape(roi)[1]
+    area_roi=height*width
+    aspect_roi=1.0*width/height
+    L=65536 # number of levels for 16-bit
+    hist,bins = np.histogram(roi.ravel(),L,[0,L])
+    norm_hist=[]
+    hist[0]=0 # non considero i pixel a 0
+    s=sum(hist)
+    for el in hist:
+        if el>0:
+            norm_hist.append(el*1.0/s)
+        else:
+            norm_hist.append(0.0)
+            
+    roi[roi==0]=np.nan
+    m=np.nanmean(roi.ravel())
+    
+    second_moment=0
+    third_moment=0
+    uniformity=0
+    entropy=0
+    for i in range(L):
+        second_moment+=((i-m)**2*norm_hist[i])
+        third_moment+=((i-m)**3*norm_hist[i])
+        uniformity+=norm_hist[i]**2
+        #entropy-=norm_hist[i]*np.log2(norm_hist[i])
+        
+    second_moment=second_moment/((L-1)**2)   
+    R=1-1.0/(1+second_moment) # relative smoothness
+    
+    return area_roi,aspect_roi,R,third_moment,uniformity
+    
+    
+    '''
+    print "R: %f" % R
+    print "third_moment: %f" % third_moment
+    print 'uniformity: %f' % uniformity
+    print 'entropy: %f' % entropy
+    '''
+    
+    
+    
+    
+    
+
+    
 
 if __name__ == '__main__':
     my_util=MyUtil()
@@ -129,23 +179,39 @@ if __name__ == '__main__':
     # Set up the detector with default parameters.
     '''
     
-    # original image
-    image=w.observations[0].window
-    # interpolated image
-    interp_image=cv2.resize(image,(1800,1200),interpolation=cv2.INTER_LANCZOS4)
-    # detecting blob
-    ROI, row_interval, col_interval=fwhmROI(interp_image)  
-    
-    fig, ax = plt.subplots(3,1)
-    plt.subplots_adjust(hspace=0.6)
-    ax[0].set_title('Original image (12x18)')
-    ax[0].imshow(image,cmap='gray')
-    ax[1].set_title('Interpolated image (1200x1800)')
-    ax[1].imshow(interp_image,cmap='gray')
-    ax[2].set_title('Blob detection')
-    ax[2].imshow(interp_image,cmap='gray')
-    ax[2].add_patch(patches.Rectangle((col_interval[0],row_interval[0]),np.shape(ROI)[1],np.shape(ROI)[0], fill=False, edgecolor='red'))
-    fig.savefig('triplot.png')
+
+    collection=w.observations
+    txt_file = open('results.txt','w') 
+    for o in collection:     
+        # original image
+        image=o.window
+        # interpolated image
+        interp_image=cv2.resize(image,(1800,1200),interpolation=cv2.INTER_LANCZOS4)
+        # detecting blob
+        ROI, row_interval, col_interval=detectROI(interp_image)  
+        
+        area_roi,aspect_roi,R,third_moment,uniformity=analyseROI(ROI)
+        
+        hours=(o.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
+        
+        txt_file.write('%d %.10f %d %.10f %.10f %.10f %.10f\n' % (o.id,hours,area_roi,aspect_roi,R,third_moment,uniformity))
+        
+        
+        print "%d of %d" % (o.id,len(collection))
+        '''
+        # displaying things
+        fig, ax = plt.subplots(3,1)
+        plt.subplots_adjust(hspace=0.6)
+        ax[0].set_title('Original image (12x18)')
+        ax[0].imshow(image,cmap='gray')
+        ax[1].set_title('Interpolated image (1200x1800)')
+        ax[1].imshow(interp_image,cmap='gray')
+        ax[2].set_title('Blob detection')
+        ax[2].imshow(interp_image,cmap='gray')
+        ax[2].add_patch(patches.Rectangle((col_interval[0],row_interval[0]),np.shape(ROI)[1],np.shape(ROI)[0], fill=False, edgecolor='red'))
+        fig.savefig('triplot.png')
+        '''
+    txt_file.close()
     
     
     '''
