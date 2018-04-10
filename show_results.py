@@ -6,7 +6,7 @@ Created on 09 apr 2018
 from matplotlib import pyplot as plt
 from matplotlib import figure
 import numpy as np
-from sympy.plotting.intervalmath.interval_arithmetic import interval
+from scipy import interpolate
 
 class Measure(object):
     def __init__(self,id,hours,area_roi,aspect_roi,R,third_moment,uniformity):
@@ -18,6 +18,27 @@ class Measure(object):
         self.third_moment=third_moment
         self.uniformity=uniformity
         
+def interpolate_measurements(xdata,ydata):
+    new_xdata = np.linspace(min(xdata), max(xdata), len(xdata))
+    f = interpolate.interp1d(xdata, ydata)
+    new_ydata = f(new_xdata)   # use interpolation function returned by `interp1d`
+    return new_xdata,new_ydata
+    
+def evaluate_fft(x_data,y_data,peak_threshold):
+
+    A=np.fft.fft(y_data)
+    freq = np.fft.fftfreq(len(x_data))
+    spectrum=np.abs(A)
+    
+    fig,ax=plt.subplots()
+    ax.plot(freq[:len(freq)/2],spectrum[:len(spectrum)/2])
+    plt.savefig('fft.png')
+    threshold = peak_threshold * max(spectrum)
+    mask = abs(spectrum) > threshold
+    
+    Ts=(max(x_data)-min(x_data))/len(x_data)
+    peaks = freq[mask]/Ts
+    return freq,spectrum,peaks
         
 if __name__ == '__main__':
     f=open('results.txt','r')
@@ -62,29 +83,13 @@ if __name__ == '__main__':
     
     plt.savefig('Rvshours.png')
     
+    interp_hours,interp_area=interpolate_measurements(hours, ACmotion)
     
-    A=np.fft.fft(area_roi)
-    freq = np.fft.fftfreq(len(A))
-    spectrum=np.abs(A)
+    freq,spectrum,peaks=evaluate_fft(interp_hours, interp_area, peak_threshold=0.1)
     
-    fig,ax=plt.subplots()
-    ax.plot(freq[:len(freq)/2],spectrum[:len(spectrum)/2])
-    plt.savefig('fft.png')
-    threshold = 0.01 * max(spectrum)
-    mask = abs(spectrum) > threshold
-    
-    
-    start=0
-    intervals=[]
-    for stop in hours:
-        intervals.append(stop-start)
-        start=stop
-    fs= 1.0/np.mean(intervals)
-    
-    peaks = freq[mask]*fs
     print peaks
         
-    
+
  
     
         
