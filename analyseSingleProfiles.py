@@ -194,7 +194,7 @@ if __name__ == '__main__':
         
         hours=(o.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
         
-        txt_file.write('%d %.10f %d %.10f %.10f %.10f %.10f\n' % (o.id,hours,area_roi,aspect_roi,R,third_moment,uniformity))
+        txt_file.write('%d %.6f %d %d %.6f %.6f %.6f %.6f\n' % (o.id,hours,o.ACmotion,area_roi,aspect_roi,R,third_moment,uniformity))
         
         
         print "%d of %d" % (o.id,len(collection))
