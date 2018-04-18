@@ -128,12 +128,6 @@ def analyseROI(ROI):
     print 'entropy: %f' % entropy
     '''
     
-    
-    
-    
-    
-
-    
 
 if __name__ == '__main__':
     my_util=MyUtil()

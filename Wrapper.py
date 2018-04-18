@@ -261,5 +261,8 @@ class Wrapper(object):
         print "Deleted %d wrong observations from collection" % count_errors
         return new_collection
                 
+    def getCollection(self, n_elements=None):
+        collection=self.observations[:n_elements]
+        return collection
         
             
