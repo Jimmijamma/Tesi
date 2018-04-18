@@ -22,10 +22,12 @@ class Wrapper(object):
     '''
 
     def __init__(self, json_obj):
+        import os
+        
         '''
         Constructor
         '''
-        self.id = None
+        self.id = json_obj['wrapperID']
         self.first_obs = json_obj['first_transit'] # ns
         self.last_obs = json_obj['last_transit'] # ns
         self.time_interval = 1.0*(self.last_obs-self.first_obs)/(60*60*1000*1000*1000)
@@ -41,6 +43,10 @@ class Wrapper(object):
             self.fov=0
         self.tdi_period = None
         self.observations=self.parseJSON(json_obj)
+        
+        self.dir_name='outputs/'+self.id
+        if not os.path.exists(self.dir_name):
+            os.makedirs(self.dir_name)
         
         print "Wrapper loaded successfully"
         print "> CCD coordinates: (" + str(self.ccdRow) + "," + str(self.ccdStrip) + ")"

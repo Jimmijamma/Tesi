@@ -18,7 +18,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 from math import sqrt
 from skimage import data
-from skimage.feature import blob_dog, blob_log, blob_doh
+from skimage.feature import blob_dog, blob_log, blob_doh, greycomatrix, greycoprops
 from skimage.color import rgb2gray
 
 import matplotlib.pyplot as plt
@@ -179,7 +179,6 @@ if __name__ == '__main__':
     # Set up the detector with default parameters.
     '''
     
-
     collection=w.observations
     txt_file = open('results.txt','w') 
     for o in collection:     
@@ -188,14 +187,26 @@ if __name__ == '__main__':
         # interpolated image
         interp_image=cv2.resize(image,(1800,1200),interpolation=cv2.INTER_LANCZOS4)
         # detecting blob
-        ROI, row_interval, col_interval=detectROI(interp_image)  
+        ROI, row_interval, col_interval=detectROI(interp_image)
         
-        area_roi,aspect_roi,R,third_moment,uniformity=analyseROI(ROI)
+        glcm = greycomatrix(ROI.astype(int)/256, [1], [0], 256, symmetric=True, normed=True)
+        contrast = greycoprops(glcm, prop='contrast')[0, 0]
+        dissimilarity = greycoprops(glcm, prop='dissimilarity')[0, 0]
+        homogeneity = greycoprops(glcm, prop='homogeneity')[0, 0]
+        energy = greycoprops(glcm, prop='energy')[0, 0]
+        correlation = greycoprops(glcm, prop='correlation')[0, 0]
+        ASM = greycoprops(glcm, prop='ASM')[0, 0]
+        
+        #print [contrast, dissimilarity, homogeneity, energy, correlation, ASM]
         
         hours=(o.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
         
-        txt_file.write('%d %.6f %d %d %.6f %.6f %.6f %.6f\n' % (o.id,hours,o.ACmotion,area_roi,aspect_roi,R,third_moment,uniformity))
+        #area_roi,aspect_roi,R,third_moment,uniformity=analyseROI(ROI)
         
+        
+        
+        #txt_file.write('%d %.6f %d %d %.6f %.6f %.6f %.6f\n' % (o.id,hours,o.ACmotion,area_roi,aspect_roi,R,third_moment,uniformity))
+        txt_file.write('%d %.6f %d %6f %.6f %.6f %.6f %.6f %.6f\n' % (o.id,hours,o.ACmotion,contrast, dissimilarity, homogeneity, energy, correlation, ASM))
         
         print "%d of %d" % (o.id,len(collection))
         '''
