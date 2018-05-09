@@ -27,7 +27,7 @@ class Observation(object):
     classdocs
     '''
 
-    def __init__(self, wrapper, id, window, gating, transitid, timestamp, ACmotion, calCentroid_AC=None, calCentroid_AL=None):
+    def __init__(self, wrapper, id, window, gating, transitid, timestamp, ACmotion, ACrate, calCentroid_AC=None, calCentroid_AL=None):
         '''
         Constructor
         '''
@@ -44,11 +44,15 @@ class Observation(object):
         self.timestamp=timestamp # ns
         self.transitid=transitid
         self.ACmotion=ACmotion
+        if ACrate==None:
+            ACrate=-1
+        self.ACrate=ACrate
         self.imgpath=None
         self.centroidCM=None
         self.centroidCF=None
         self.totIntensity=None
         self.timeBin=None
+        self.ROIaspect=None
                 
     def createImage(self, folder, filename, format):
         if filename==None:
@@ -56,8 +60,8 @@ class Observation(object):
             total_path=folder + "/" + filename + "." + format
         else:
             total_path=folder + "/" + filename + str(self.id) + "." + format
+            
         f=open(total_path, 'wb')
-        
         win = map(np.uint16,self.window)
         writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
         writer.write(f, win)

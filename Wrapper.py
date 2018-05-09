@@ -10,6 +10,7 @@ mpl.use('TkAgg')
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import datetime
+import os
 
 from Observation import Observation
 
@@ -22,7 +23,6 @@ class Wrapper(object):
     '''
 
     def __init__(self, json_obj):
-        import os
         
         '''
         Constructor
@@ -53,9 +53,9 @@ class Wrapper(object):
         print "> Field Of View (FOV): " +  str(self.fov)
         print "> Stars of magnitude interval " + str(self.mag) + " mag, wavenumber " + str(self.wavn) + " nm"
         print "> N. of transits: " + str(self.n_transits)
-        print "> First transit on: " + str(self.first_obs)
+        print "> First transit on: " + str(self.first_obs) + " (OMBT time - ns)"
         #datetime.datetime.fromtimestamp(self.first_obs/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
-        print "> Last transit on: " + str(self.last_obs)
+        print "> Last transit on: " + str(self.last_obs) + " (OMBT time - ns)"
         print "> Time interval: " + str(self.time_interval) + " hours"
         #datetime.datetime.fromtimestamp(self.last_obs/1000.0).strftime('%Y-%m-%d %H:%M:%S.%f')
         print
@@ -68,7 +68,7 @@ class Wrapper(object):
             win=np.array(obs['window'])
             calCentroid_AC=obs['calCentroidAC']/pix_size_AC+5.5
             calCentroid_AL=obs['calCentroidAL']/pix_size_AL+8.5
-            o = Observation(self, obs['id'], np.swapaxes(win,0,1), obs['gating'], obs['transitid'], obs['timestamp'], obs['ACmotion'], calCentroid_AC, calCentroid_AL)
+            o = Observation(self, obs['id'], np.swapaxes(win,0,1), obs['gating'], obs['transitid'], obs['timestamp'], obs['ACmotion'],obs['ACrate'], calCentroid_AC, calCentroid_AL)
             obs_list.append(o)
         return obs_list
         
@@ -198,6 +198,10 @@ class Wrapper(object):
             
     def evaluate_PCA(self, collection, from_library=True,normalized=False, n_components=6):
         
+        dir_name=self.dir_name+'/eigenimages'
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        
         from sklearn import decomposition
         
         input_data=[]
@@ -240,7 +244,7 @@ class Wrapper(object):
                 eigenimage=(np.reshape(comp[:,i], (12,18), order=0)-1)*65000.0/2+65000
             eigenimage=np.array(eigenimage)
             
-            f=open('eigenimages/eigenimage'+str(i)+'.png', 'wb')
+            f=open(dir_name+'/eigenimage'+str(i)+'.png', 'wb')
             win = map(np.uint16,eigenimage)
             writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
             writer.write(f, win)

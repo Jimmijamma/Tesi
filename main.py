@@ -37,19 +37,18 @@ if __name__ == '__main__':
 
     w.divideTimeIntervals(3)
     
-    
+    '''
     # create images of the set of observations
     for o in w.observations:
         o.createImage(folder, filename, img_format) 
-    
-    
     '''
+
     # evaluating PCA
     n_components=10
     from_library=False
-    comp=w.evaluate_PCA(w.observations, from_library=True, normalized=False, n_components=6)
+    comp=w.evaluate_PCA(w.getCollection(), from_library=True, normalized=False, n_components=n_components)
     
-    '''
+    
     '''
     cllctn=[]
     for o in w.observations:
