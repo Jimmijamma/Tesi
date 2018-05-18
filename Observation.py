@@ -7,7 +7,6 @@ Created on 13 gen 2018
 import numpy as np
 import png
 from scipy import optimize as opt
-from astropy.version import timestamp
 
 pix_size_AL=47260/4500
 pix_size_AC=60000/1966 # micron
