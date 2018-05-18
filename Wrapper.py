@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import datetime
 import os
+import json
 
 from Observation import Observation
 
@@ -22,11 +23,14 @@ class Wrapper(object):
     classdocs
     '''
 
-    def __init__(self, json_obj):
+    def __init__(self, json_name):
         
         '''
         Constructor
         '''
+        json_data=open(json_name)
+        json_obj = json.load(json_data)
+        json_data.close()
         self.id = json_obj['wrapperID']
         self.first_obs = json_obj['first_transit'] # ns
         self.last_obs = json_obj['last_transit'] # ns

@@ -18,6 +18,8 @@ from Wrapper import Wrapper
 import json
 from scipy import interpolate
 from datetime import datetime
+from scipy import optimize as opt
+import time
 
 class FrequencyAnalysis(object):
     '''
@@ -28,13 +30,31 @@ class FrequencyAnalysis(object):
         Constructor
         '''
         self.wrapper=wrapper
+        self.date=self.computeDate()
+        
+        self.deleteEmptyFolders()   
+        
+        self.dir_name=self.wrapper.dir_name+'/FrequencyAnalysis/'+self.date
+        if not os.path.exists(self.dir_name):
+            os.makedirs(self.dir_name)
+            
+        self.txt_cooccurrence=self.dir_name+'/resultsCooccurrenceMatrix.txt'
+        self.txt_moments=self.dir_name+'/resultsMoments.txt'
+        
+        
+    def deleteEmptyFolders(self):
+        if os.path.exists(self.wrapper.dir_name+'/FrequencyAnalysis/'):
+            for x in os.walk(self.wrapper.dir_name+'/FrequencyAnalysis/'):
+                if os.listdir(x[0])==[]:
+                    if os.path.isdir(x[0]):
+                        os.rmdir(x[0])
+                        
+    def computeDate(self):
         date_time=str(datetime.now()).split(' ')
         date=date_time[0]
         hour=date_time[1].split(':')[:-1]
         str_date=date+'_'+hour[0]+':'+hour[1]
-        self.dir_name=self.wrapper.dir_name+'/FrequencyAnalysis/'+str_date
-        if not os.path.exists(self.dir_name):
-            os.makedirs(self.dir_name)
+        return str_date
         
     def interpolateImage(self,image,x_dim=1800,y_dim=1200, algorithm=cv2.INTER_LANCZOS4):
         interp_image=cv2.resize(image,(x_dim,y_dim),interpolation=algorithm)
@@ -340,99 +360,138 @@ class FrequencyAnalysis(object):
         print
     
     
+    def writeROImoments(self,ROI,obs,fp):
+    #analysing ROI moments
+        hours=(obs.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
+        area_roi,aspect_roi,R,third_moment,uniformity=self.analyseROImoments(ROI)
+        fp.write('%d %.6f %d %d %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,area_roi,aspect_roi,R,third_moment,uniformity))
+        
+    def writeROIcooccurrence(self,ROI,obs,fp):
+        hours=(obs.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
+        contrast, dissimilarity, homogeneity, energy, correlation, ASM=self.analyseROIcooccurrence(ROI,distances=[1],angles=[0])
+        fp.write('%d %.6f %d %6f %.6f %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,contrast, dissimilarity, homogeneity, energy, correlation, ASM))
+          
+    def experiment_with_resize_PCA(self, collection, x_dim, y_dim): 
+        update_guess=10 # specify the n. of iteration after which start to update the guess, otherwise set to False
+        guess=[20000,x_dim/2,y_dim/2,x_dim,y_dim,0,0]
+        list_popt=[]
+        if not os.path.exists(self.dir_name+'/PCAresults'):
+            os.makedirs(self.dir_name+'/PCAresults')
+        txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
+        txt_file_moments = open(self.txt_moments,'w')
+        
+        for ii, o in enumerate(collection):
+            t0 = time.time()
+               
+            img=o.window
+            # interpolating image
+            interp_img=self.interpolateImage(img, x_dim, y_dim)
+            # fitting the interpolated image wiht a 2D Gaussian function
+            popt=fitGaussian(img=interp_img, func=twoD_Gaussian, guess=guess)
+            # popt = (amplitude,dx,dy,sigma_x,sigma_y,theta,offset)
+            list_popt.append(popt)
+            
+            mu_x=popt[1]
+            mu_y=popt[2]
+            s_x=popt[3]**2
+            s_y=popt[4]**2
+    
+            # resizing the profile using PCA
+            resized_img=resizePCA(interp_img, mu_x, mu_y, s_x, s_y, plot_results=True, it=ii, folder=self.dir_name+'/PCAresults')
+     
+            if update_guess!=False:
+                if ii>update_guess:
+                    guess=np.mean(list_popt,axis=0)
+                
+            res=self.detectROI(resized_img, thr_factor=0.5, zero_padding=False)
+            if res==-1:
+                print "ERROR detecting ROI!!"
+                continue
+            
+            ROI,row_interval,col_interval=res
+            
+            self.writeROImoments(ROI,o,txt_file_moments)
+            self.writeROIcooccurrence(ROI,o,txt_file_cooccurrence)
+            #print time.time()-t0
+            print '%i of %i' %(ii+1,len(collection))
+        
+        txt_file_cooccurrence.close()   
+        txt_file_moments.close()
+    
+        print "Experiment successfully completed!"
+        print    
+    
+def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    xo = float(xo)
+    yo = float(yo)    
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) 
+                            + c*((y-yo)**2)))
+    return g.ravel()
+
+def fitGaussian(img, func, guess):
+    x_lim=np.shape(img)[1]
+    y_lim=np.shape(img)[0]
+    x = np.linspace(start=0, stop=x_lim-1, num=x_lim)
+    y = np.linspace(start=0, stop=y_lim-1, num=y_lim)
+    x, y = np.meshgrid(x, y)
+    # constraints for fitting ((lower bounds),(upper bounds))
+    bounds=((0,0,0,0,0,0,-np.inf),(80000,x_lim-1,y_lim-1,np.inf,np.inf,0.5,np.inf))
+    popt, pcov = opt.curve_fit(func, (x, y), img.ravel(), p0=guess, bounds=bounds,maxfev=1000000)
+    return popt
+
+def resizePCA(img, mu_x, mu_y, s_x, s_y, plot_results=False, it=None, folder=None):
+    indices=np.where(img)
+    X=indices[1]
+    Y=indices[0]
+    
+    #corr=np.corrcoef(X, Y)
+    #corr=corr[1,0]
+    #cov= [[s_x,corr*np.sqrt(s_x)*np.sqrt(s_y)],[corr*np.sqrt(s_x)*np.sqrt(s_y),s_y]]
+    cov= [[s_x,0],[0,s_y]] # covariance matrix
+    L,U=np.linalg.eigh(cov)
+    z1=U[0,0]*(X-mu_x)+U[0,1]*(Y-mu_y) 
+    z2=U[1,0]*(X-mu_x)+U[1,1]*(Y-mu_y)
+    
+    L[1]=L[1]/L[0]
+    L[0]=1
+    
+    w1,w2=(z1/np.sqrt(L[0]))+mu_x,(z2/np.sqrt(L[1]))+mu_y # new sets of coordinates 
+    
+    x_lim=np.shape(img)[1]
+    y_lim=np.shape(img)[0]
+    x = np.linspace(start=0, stop=x_lim-1, num=x_lim)
+    y = np.linspace(start=0, stop=y_lim-1, num=y_lim)
+    x, y = np.meshgrid(x, y)
+    
+    resized_img=interpolate.griddata((w1,w2), img.ravel(), xi=(x,y), method='cubic', fill_value=np.min(img))
+    
+    if plot_results==True:
+        fig, axes = plt.subplots(nrows=1, ncols=2)
+        axes[0].imshow(img)
+        axes[0].set_title('Original (interpolated)')
+        axes[1].imshow(resized_img)
+        axes[1].set_title('Shrinked with PCA')
+        fig.suptitle('Image #%i' %it)
+        plt.savefig(folder+'/PCAresult'+str(it)+'.png')
+        plt.close()
+    
+    return resized_img
     
 if __name__ == '__main__':
     
-    
-    json_data=open('CalWrapper.json')
-    json_obj = json.load(json_data)
-    json_data.close()
-    
-    folder='/Users/jimmijamma/Desktop/bho'
-    filename=None
-    img_format='png'
-    
-    
     print
-    w=Wrapper(json_obj)
-    '''
-    for o in w.getCollection():
-        o.createImage(folder,filename,img_format)
-        if o.ACmotion==0:
-            print o.timestamp
-     
+    w=Wrapper('CalWrapper.json')
+    
+    fa=FrequencyAnalysis(w)
+    
     collection=w.getCollection()
-    import png
     
-    f=open('original.png', 'wb')
-    win = map(np.uint16,collection[169].window)
-    writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
-    writer.write(f, win)
-    f.close()
-    
-    freq_analysis=FrequencyAnalysis(w)
-    
-    
-    algorithms=[cv2.INTER_NEAREST,cv2.INTER_LINEAR,cv2.INTER_AREA,cv2.INTER_CUBIC,cv2.INTER_LANCZOS4]
-    for al in algorithms:
-        interp_image=freq_analysis.interpolateImage(collection[169].window, 1800, 1200, algorithm=al)
-        print str(al)
-        f=open('interp'+str(al)+'.png', 'wb')
-        win = map(np.uint16,interp_image)
-        writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
-        writer.write(f, win)
-        f.close()
-    
-    ROI,row_I,col_I=freq_analysis.detectROI(interp_image, zero_padding=True)
-    
-    
-    # Create figure and axes
-    fig,ax = plt.subplots(1)
-    # Display the image
-    ax.imshow(interp_image, cmap='gray')
-    # Create a Rectangle patch
-    rect = patches.Rectangle((col_I[0],row_I[0]),np.size(ROI,1),np.size(ROI,0),linewidth=1,edgecolor='r',facecolor='none')
-    # Add the patch to the Axes
-    ax.add_patch(rect)
-    plt.savefig('imageROI.png')
-    plt.close()
-    
-    f=open('ROI.png', 'wb')
-    win = map(np.uint16,ROI)
-    writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
-    writer.write(f, win)
-    f.close()
-    
-    print "Reading and displaying co-occurrence results..."
-    f=open(freq_analysis.dir_name+'/resultsCooccurrenceMatrix.txt','r')
-    measure_list=[]
-    for line in f:
-        l=line.split()
-        m=[l[0],l[1],l[2],l[3],l[4],l[5],l[6],l[7],l[8]]
-        measure_list.append(m)
-    f.close()
-    
-    hours=[float(row[1]) for row in measure_list]
-    dissimilarity=[float(row[4]) for row in measure_list]
-    
-    plt.stem(hours[:100],dissimilarity[:100])
-    plt.savefig('stemNOT.png')
-    plt.close()
-    
-    interp_h, interp_d=freq_analysis.interpolate_measurements(hours, dissimilarity)
-    
-    plt.stem(interp_h[:100],interp_d[:100])
-    plt.savefig('stem.png')
+    fa.experiment_with_resize_PCA(collection,x_dim=180,y_dim=120)
     
     '''
-    
-    freq_analysis=FrequencyAnalysis(w)
-    
-
-    collection=w.getCollection()
-    txt_file_cooccurrence = open(freq_analysis.dir_name+'/resultsCooccurrenceMatrix.txt','w')
-    txt_file_moments = open(freq_analysis.dir_name+'/resultsMoments.txt','w')
-    
     for o in collection:
         print "Resizing images, analysing and writing on disk: %d of %d" % (o.id,len(collection))
         interp_image=freq_analysis.interpolateImage(o.window, 1800, 1200)
@@ -478,5 +537,15 @@ if __name__ == '__main__':
 
     freq_analysis.readResultsCooccurrence()
     freq_analysis.readResultsMoments()
+    
+    '''
+
+    fa.readResultsCooccurrence()
+    fa.readResultsMoments()
+    
+    
+
+    
+    
     
     
