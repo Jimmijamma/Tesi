@@ -4,23 +4,17 @@ Created on 18 apr 2018
 @author: jimmijamma
 '''
 import matplotlib as mpl 
-from numpy import interp
-from _ctypes import resize
 mpl.use('TkAgg')
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 from matplotlib import figure
 import os
-import cv2
 import numpy as np
-from skimage.feature import greycomatrix, greycoprops
 from Wrapper import Wrapper
-import json
 from scipy import interpolate
 from datetime import datetime
-from scipy import optimize as opt
 import time
-from ImgProc import ImgProc
+from ImgProc import ImgProc,twoD_Gaussian
 
 class FrequencyAnalysis(object):
     '''
@@ -230,15 +224,14 @@ class FrequencyAnalysis(object):
         print "Results read and displayed successfully!"
         print
     
-    
     def writeROImoments(self,ROI,obs,fp):
     #analysing ROI moments
-        hours=(obs.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
+        hours=(obs.timestamp-self.wrapper.observations[0].timestamp)*1.0/(60*60*1000*1000*1000)
         area_roi,aspect_roi,R,third_moment,uniformity=self.improc.ROI_analyseMoments(ROI)
         fp.write('%d %.6f %d %d %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,area_roi,aspect_roi,R,third_moment,uniformity))
         
     def writeROIcooccurrence(self,ROI,obs,fp):
-        hours=(obs.timestamp-collection[0].timestamp)*1.0/(60*60*1000*1000*1000)
+        hours=(obs.timestamp-self.wrapper.observations[0].timestamp)*1.0/(60*60*1000*1000*1000)
         contrast, dissimilarity, homogeneity, energy, correlation, ASM=self.improc.ROI_analyseCooccurrenceMatrix(ROI,distances=[1],angles=[0])
         fp.write('%d %.6f %d %6f %.6f %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,contrast, dissimilarity, homogeneity, energy, correlation, ASM))
         
@@ -283,7 +276,7 @@ class FrequencyAnalysis(object):
             # interpolating image
             interp_img=self.improc.img_interpolateImage(img, x_dim, y_dim)
             # fitting the interpolated image wiht a 2D Gaussian function
-            popt=fitGaussian(img=interp_img, func=twoD_Gaussian, guess=guess)
+            popt=self.improc.img_fitGaussian(img=interp_img, func=twoD_Gaussian, guess=guess)
             # popt = (amplitude,dx,dy,sigma_x,sigma_y,theta,offset)
             list_popt.append(popt)
             
@@ -335,7 +328,7 @@ class FrequencyAnalysis(object):
             width=np.shape(roi)[1]
             aspect_roi=1.0*width/height
             # resizing image
-            resized_img=self.improc.img_resizeProfileROIaspect(o.window, aspect_roi)
+            resized_img=self.improc.img_resizeProfileROIaspect(o.window, aspect_roi, x_dim=x_dim, y_dim_=y_dim)
             # detecting image ROI
             res=self.improc.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
             if res==-1:
@@ -351,55 +344,5 @@ class FrequencyAnalysis(object):
         
         print "Experiment successfully completed!"
         print 
-    
-def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    xo = float(xo)
-    yo = float(yo)    
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) 
-                            + c*((y-yo)**2)))
-    return g.ravel()
-
-def fitGaussian(img, func, guess):
-    x_lim=np.shape(img)[1]
-    y_lim=np.shape(img)[0]
-    x = np.linspace(start=0, stop=x_lim-1, num=x_lim)
-    y = np.linspace(start=0, stop=y_lim-1, num=y_lim)
-    x, y = np.meshgrid(x, y)
-    # constraints for fitting ((lower bounds),(upper bounds))
-    bounds=((0,0,0,0,0,0,-np.inf),(65536,x_lim-1,y_lim-1,np.inf,np.inf,0.5,np.inf))
-    popt, pcov = opt.curve_fit(func, (x, y), img.ravel(), p0=guess, bounds=bounds,maxfev=1000000)
-    return popt
-
-    
-if __name__ == '__main__':
-    
-    print
-    w=Wrapper('CalWrapper.json')
-    
-    fa=FrequencyAnalysis(w)
-    
-    collection=w.getCollection()
-    
-    # fa.experiment_with_resize_PCA(collection,x_dim=180,y_dim=120)
-    
-    # fa.experiment_with_resize_aspect(collection, x_dim=1800, y_dim=1200)
-    
-    fa.experiment(collection, x_dim=1800, y_dim=1200)
-    
-    
-    print "Finished resizing images!"
-    print
-
-    fa.readResultsCooccurrence()
-    fa.readResultsMoments()
-    
-    
-    
-
-    
-    
-    
-    
+        
+        

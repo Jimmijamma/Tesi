@@ -3,45 +3,37 @@ Created on 13 gen 2018
 
 @author: jimmijamma
 '''
-import json
-import numpy as np
+
 import matplotlib as mpl 
 mpl.use('TkAgg')
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import Wrapper
-import png
-from scipy import optimize as opt
-from skimage.feature import register_translation
-from Observation import Observation,twoD_Gaussian
-from MyUtil import MyUtil
+from Wrapper import Wrapper
+from FrequencyAnalysis import FrequencyAnalysis
 
 
+    
 if __name__ == '__main__':
     
-    my_util=MyUtil()
-    # path and format for the images
-    folder='/Users/jimmijamma/Desktop/bho'
-    filename=None
-    img_format='png'
-    
-    # loading the wrapper from JSON
-    json_data=open('CalWrapper.json')
-    json_obj = json.load(json_data)
-    json_data.close()
-    
     print
-    # loading the data structure and calling methods
-    w=Wrapper.Wrapper(json_obj)
+    w=Wrapper('CalWrapper.json')
+    fa=FrequencyAnalysis(w)
+    collection=w.getCollection()
     
-
-    w.divideTimeIntervals(3)
+    fa.experiment_with_resize_PCA(collection,x_dim=180,y_dim=120)
+    
+    #fa.experiment_with_resize_aspect(collection, x_dim=1800, y_dim=1200)
+    
+    #fa.experiment(collection, x_dim=1800, y_dim=1200)
+    
+    fa.readResultsCooccurrence()
+    fa.readResultsMoments()
     
     '''
+    w.divideTimeIntervals(3)
+    
     # create images of the set of observations
     for o in w.observations:
         o.createImage(folder, filename, img_format) 
-    '''
+    
 
     # evaluating PCA
     n_components=10
@@ -49,7 +41,7 @@ if __name__ == '__main__':
     comp=w.evaluate_PCA(w.getCollection(), from_library=True, normalized=False, n_components=n_components)
     
     
-    '''
+    
     cllctn=[]
     for o in w.observations:
         cllctn.append(o.window)
@@ -99,9 +91,7 @@ if __name__ == '__main__':
     print my_util.AL_pix2micron((np.mean(errs_AL)))
     print
     
-    '''
-         
-    '''
+    
     # estimating centroids for each transit fitting with a Gaussian curve
     w.estimateCentroids_fit()
     
@@ -114,12 +104,6 @@ if __name__ == '__main__':
     xe,ye,h=w.create2Dhistogram('2Dhist_120x180.png', dx, dy, values, x_res, y_res, normed=True)
  
     '''
-
     
 
-    
-    
-     
-    
-    
     

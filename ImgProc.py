@@ -8,6 +8,17 @@ from matplotlib import pyplot as plt
 from scipy import interpolate
 import cv2
 from skimage.feature import greycomatrix, greycoprops
+from scipy import optimize as opt
+
+def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    xo = float(xo)
+    yo = float(yo)    
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) 
+                            + c*((y-yo)**2)))
+    return g.ravel()
 
 class ImgProc(object):
     '''
@@ -68,17 +79,28 @@ class ImgProc(object):
           
         return ROI, row_interval, col_interval
     
+    def img_fitGaussian(self,img, func, guess):
+        x_lim=np.shape(img)[1]
+        y_lim=np.shape(img)[0]
+        x = np.linspace(start=0, stop=x_lim-1, num=x_lim)
+        y = np.linspace(start=0, stop=y_lim-1, num=y_lim)
+        x, y = np.meshgrid(x, y)
+        # constraints for fitting ((lower bounds),(upper bounds))
+        bounds=((0,0,0,0,0,0,-np.inf),(65536,x_lim-1,y_lim-1,np.inf,np.inf,0.5,np.inf))
+        popt, pcov = opt.curve_fit(func, (x, y), img.ravel(), p0=guess, bounds=bounds,maxfev=1000000)
+        return popt
     
-    def img_resizeProfileROIaspect(self,image,aspectROI,algorithm=cv2.INTER_LANCZOS4):
+    
+    def img_resizeProfileROIaspect(self,image,aspectROI,x_dim=1800,y_dim_=1200,algorithm=cv2.INTER_LANCZOS4):
         '''
         Method for shrinking PSF profiles through ROI aspect
         '''
-        x_dim=1800
-        y_dim=int(1200*aspectROI)
+        x_dim=x_dim
+        y_dim=int(y_dim_*aspectROI)
         interp_image=cv2.resize(image,(x_dim,y_dim),interpolation=algorithm)
         return interp_image
     
-    
+
     def img_resizeProfilePCA(self,image,mu_x,mu_y,s_x,s_y,plot_results=False,it=1,folder=''):
         '''
         Method for shrinking PSF profiles using PCA
