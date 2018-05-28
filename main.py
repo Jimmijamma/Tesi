@@ -48,10 +48,10 @@ if __name__ == '__main__':
     fa=FrequencyAnalysis(w)
     ip=fa.improc
     
-    #z=fa.polyfit_ACrate_ROIaspect(deg=3, x_dim=1800, y_dim=1200)
-    #print z
+    z=fa.polyfit_ACrate_ROIaspect(w.observations, deg=3, x_dim=900, y_dim=600)
+    print z
     
-    fa.experiment_with_polyfit(w.observations, coeff=Z, x_dim=180, y_dim=120)
+    fa.experiment_with_polyfit(w.observations, coeff=z, x_dim=900, y_dim=600)
     fa.readResultsCooccurrence()
     fa.readResultsMoments()
     

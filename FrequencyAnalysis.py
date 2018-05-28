@@ -89,7 +89,7 @@ class FrequencyAnalysis(object):
     def display_fft_periods(self,periods,spectrum,dir_name,param_name,peak_threshold=None):
         
         fig,ax=plt.subplots()
-        ax.plot(periods,spectrum, color='green')
+        ax.plot(periods,spectrum, color='steelblue', lw=0.7)
         ax.set_xlabel('Period [h]')
         ax.set_ylabel('Amplitude')
         plt.ylim([None, max(spectrum)*1.1])
@@ -110,7 +110,7 @@ class FrequencyAnalysis(object):
     def display_fft_freqs(self,freqs,spectrum,Ts,dir_name,param_name,peak_threshold=None):
         
         fig,ax=plt.subplots()
-        ax.plot(freqs,spectrum, color='green')
+        ax.plot(freqs,spectrum, color='steelblue', lw=0.7)
         ax.set_xlabel('Frequency')
         ax.set_ylabel('Amplitude')
         plt.ylim([None, max(spectrum)*1.1])
@@ -139,15 +139,15 @@ class FrequencyAnalysis(object):
         # Make some space on the right side for the extra y-axis.
         fig.subplots_adjust(right=0.75)
         axes[0].set_xlabel('hours')
-        axes[0].plot(x_var,y_var, color='steelblue', lw=0.5)
+        axes[0].plot(x_var,y_var, color='steelblue', lw=0.7)
         axes[0].tick_params(axis='y', colors='steelblue')
-        axes[0].set_ylabel(y_name, color='steelblue')
+        axes[0].set_ylabel(y_name)
         
         axes[1].plot(x_var,ACrate, color='indianred')
         axes[1].tick_params(axis='y', colors='indianred')
-        axes[1].set_ylabel('AC motion',color='indianred')
+        axes[1].set_ylabel('AC rate')
         
-        plt.savefig(dir_name+'/ACmotionVS'+y_name+'.png')
+        plt.savefig(dir_name+'/ACrateVS'+y_name+'.png')
         plt.close()
         
     def readResultsMoments(self, timestamp=None):
@@ -169,7 +169,7 @@ class FrequencyAnalysis(object):
         
         ids=[int(row[0]) for row in measure_list]
         hours=[float(row[1]) for row in measure_list]
-        ACmotion=[int(row[2]) for row in measure_list]
+        ACrate=[float(row[2]) for row in measure_list]
         area_roi=[int(row[3]) for row in measure_list]
         aspect_roi=[float(row[4]) for row in measure_list]
         R=[float(row[5]) for row in measure_list]
@@ -181,11 +181,19 @@ class FrequencyAnalysis(object):
             xvar=hours
             yvar=vars_dict[v]
             interp_x,interp_y=self.interpolate_measurements(xvar, yvar-np.mean(yvar))
-            self.display_timedomain(xvar,yvar,v,ACmotion,dir_name)
+            self.display_timedomain(xvar,yvar,v,ACrate,dir_name)
             freq,spectrum=self.evaluate_fft(interp_x,interp_y,v,0.05,dir_name)
             
         print "Results read and displayed successfully!"
         print
+        
+        dots,=plt.plot(ACrate,aspect_roi,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
+        plt.xlabel('AC rate')
+        plt.ylabel('ROI aspect')
+        line,=plt.plot([0,1],np.ones(2), color='indianred', linestyle='--')
+        plt.legend(handles=[dots,line], labels=['Shrinked ROIs','Ideal case'])
+        plt.savefig(self.wrapper.dir_name+'/ACrateROIaspect_shrinked.png')
+        plt.close()
             
             
     def readResultsCooccurrence(self, timestamp=None):
@@ -207,7 +215,7 @@ class FrequencyAnalysis(object):
         
         ids=[int(row[0]) for row in measure_list]
         hours=[float(row[1]) for row in measure_list]
-        ACmotion=[int(row[2]) for row in measure_list]
+        ACrate=[float(row[2]) for row in measure_list]
         contrast=[float(row[3]) for row in measure_list]
         dissimilarity=[float(row[4]) for row in measure_list]
         homogeneity=[float(row[5]) for row in measure_list]
@@ -220,7 +228,7 @@ class FrequencyAnalysis(object):
             xvar=hours
             yvar=vars_dict[v]
             interp_x,interp_y=self.interpolate_measurements(xvar, yvar-np.mean(yvar))
-            self.display_timedomain(xvar,yvar,v,ACmotion,dir_name)
+            self.display_timedomain(xvar,yvar,v,ACrate,dir_name)
             freq,spectrum=self.evaluate_fft(interp_x,interp_y,v,0.05,dir_name)
         
         print "Results read and displayed successfully!"
@@ -355,13 +363,13 @@ class FrequencyAnalysis(object):
         print "Experiment successfully completed!"
         print 
         
-    def polyfit_ACrate_ROIaspect(self, deg=3, x_dim=1800, y_dim=1200):
+    def polyfit_ACrate_ROIaspect(self, collection, deg=3, x_dim=1800, y_dim=1200):
         w=self.wrapper
         ip=self.improc
         l_aspect=[]
         l_ACrate=[]
-        
-        for o in w.observations:
+        bar=ChargingBar('Defining AC smearing function', max=len(collection))
+        for o in collection:
             if o.ACrate>0:
                 interp_img=ip.img_interpolateImage(o.window, x_dim=x_dim, y_dim=y_dim)
                 res=ip.img_detectROI(interp_img, thr_factor=0.5, zero_padding=False)
@@ -370,10 +378,7 @@ class FrequencyAnalysis(object):
                 aspect_roi=1.0*wi/h
                 l_ACrate.append(o.ACrate)
                 l_aspect.append(aspect_roi)
-                print o.id
-                
-            else:
-                print o.ACrate
+            bar.next()
              
         l_aspect=np.array(l_aspect)   
         #smooth_aspect=smooth(l_aspect,3)   
@@ -387,14 +392,11 @@ class FrequencyAnalysis(object):
         plt.legend(handles=[dots,line], labels=['Data','Curve fit'])
         plt.savefig(w.dir_name+'/ACrateROIaspect.png')
         plt.close()
-        
+        bar.finish()
         return z
     
     def experiment_with_polyfit(self, collection, coeff, x_dim=1800, y_dim=1200):
         bar=ChargingBar('Resizing and analysing images', max=len(collection))
-        lol=[]
-        l_ACrate=[]
-        l_hours=[]
         ip=self.improc
         txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
         txt_file_moments = open(self.txt_moments,'w')
@@ -407,26 +409,12 @@ class FrequencyAnalysis(object):
                     print "ERROR!!"
                     continue
                 ROI=res[0]
-                h,wi=np.shape(ROI)
-                aspect_roi=1.0*wi/h
-                if aspect_roi<3000000:
-                    lol.append(aspect_roi)
-                    l_ACrate.append(o.ACrate)
-                    hour=(o.timestamp-self.wrapper.observations[0].timestamp)*1.0/(60*60*1000*1000*1000)
-                    l_hours.append(hour)
-                    #print o.id
                 self.writeROImoments(ROI, o, txt_file_moments)
                 self.writeROIcooccurrence(ROI, o, txt_file_cooccurrence)
             bar.next()
-        
-        dots,=plt.plot(l_ACrate,lol,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
-        plt.xlabel('AC rate')
-        plt.ylabel('ROI aspect')
-        line,=plt.plot([0,1],[1-1], color='indian red', linestyle='--')
-        plt.legend(handles=[dots,line], labels=['Shrinked ROIs','Ideal case'])
-        plt.savefig(self.wrapper.dir_name+'/ACrateROIaspect_shrinked.png')
-        plt.close()
-        
+        txt_file_cooccurrence.close()
+        txt_file_moments.close()
+           
         bar.finish()
         
         
