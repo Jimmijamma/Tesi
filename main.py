@@ -8,17 +8,72 @@ import matplotlib as mpl
 mpl.use('TkAgg')
 from Wrapper import Wrapper
 from FrequencyAnalysis import FrequencyAnalysis
+from ImgProc import ImgProc
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib import figure
+from scipy.optimize import curve_fit
+from progress.bar import ChargingBar, Bar
+
+Z=[ 1.04477081, -1.57731015, -0.13579937, 1.10002968]
+
+def fit_sin(tt, yy):
+    '''Fit sin to the input time sequence, and return fitting parameters "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"'''
+    tt = np.array(tt)
+    yy = np.array(yy)
+    ff = np.fft.fftfreq(len(tt), (tt[1]-tt[0]))   # assume uniform spacing
+    Fyy = abs(np.fft.fft(yy))
+    guess_freq = abs(ff[np.argmax(Fyy[1:])+1])   # excluding the zero frequency "peak", which is related to offset
+    guess_amp = np.std(yy) * 2.**0.5
+    guess_offset = np.mean(yy)
+    guess = np.array([guess_amp, 2.*np.pi*guess_freq, 0., guess_offset])
+
+    def sinfunc(t, A, w, p, c):  return A * np.sin(w*t + p) + c
+    popt, pcov = curve_fit(sinfunc, tt, yy, p0=guess)
+    A, w, p, c = popt
+    f = w/(2.*np.pi)
+    fitfunc = lambda t: A * np.sin(w*t + p) + c
+    return {"amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)}
 
 
+def smooth(y, box_pts):
+    box = np.ones(box_pts)/box_pts
+    y_smooth = np.convolve(y, box, mode='same')
+    return y_smooth
     
 if __name__ == '__main__':
     
     print
     w=Wrapper('CalWrapper.json')
     fa=FrequencyAnalysis(w)
+    ip=fa.improc
+    
+    #z=fa.polyfit_ACrate_ROIaspect(deg=3, x_dim=1800, y_dim=1200)
+    #print z
+    
+    fa.experiment_with_polyfit(w.observations, coeff=Z, x_dim=180, y_dim=120)
+    fa.readResultsCooccurrence()
+    fa.readResultsMoments()
+    
+    '''      
+    fa.display_timedomain(l_hours, lol, 'ROI_aspect', l_ACrate, dir_name='.')
+    '''        
+    '''
+    fig,ax =plt.subplots()
+    axes=[ax,ax.twinx()]
+    axes[0].plot(lol, 'go', ms=0.6)
+    axes[0].tick_params(axis='y', colors='green')
+    axes[1].plot(l_ACrate, color='red')
+    plt.savefig('miao.png')
+    plt.close()
+    '''
+       
+    ''' 
+    fa=FrequencyAnalysis(w)
+        
     collection=w.getCollection()
     
-    fa.experiment_with_resize_PCA(collection,x_dim=180,y_dim=120)
+    fa.experiment_with_resize_PCA(collection,x_dim=360,y_dim=240)
     
     #fa.experiment_with_resize_aspect(collection, x_dim=1800, y_dim=1200)
     
@@ -26,6 +81,7 @@ if __name__ == '__main__':
     
     fa.readResultsCooccurrence()
     fa.readResultsMoments()
+    '''
     
     '''
     w.divideTimeIntervals(3)

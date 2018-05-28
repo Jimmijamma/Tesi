@@ -45,6 +45,7 @@ class Observation(object):
         self.ACmotion=ACmotion
         if ACrate==None:
             ACrate=-1
+        
         self.ACrate=ACrate
         self.imgpath=None
         self.centroidCM=None

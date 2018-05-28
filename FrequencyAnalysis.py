@@ -14,7 +14,9 @@ from Wrapper import Wrapper
 from scipy import interpolate
 from datetime import datetime
 import time
+import cv2
 from ImgProc import ImgProc,twoD_Gaussian
+from progress.bar import ChargingBar, Bar
 
 class FrequencyAnalysis(object):
     '''
@@ -126,7 +128,7 @@ class FrequencyAnalysis(object):
         plt.savefig(dir_name+'/fft_freqs_'+param_name+'.png')
         plt.close()
     
-    def display_timedomain(self,x_var,y_var,y_name,ACmotion, dir_name):
+    def display_timedomain(self,x_var,y_var,y_name,ACrate, dir_name):
         
         w, h = figure.figaspect(6.)
         fig, ax = plt.subplots(figsize=(h,w))
@@ -137,13 +139,13 @@ class FrequencyAnalysis(object):
         # Make some space on the right side for the extra y-axis.
         fig.subplots_adjust(right=0.75)
         axes[0].set_xlabel('hours')
-        axes[0].plot(x_var,y_var, color='green')
-        axes[0].tick_params(axis='y', colors='green')
-        axes[0].set_ylabel(y_name, color='green')
+        axes[0].plot(x_var,y_var, color='steelblue', lw=0.5)
+        axes[0].tick_params(axis='y', colors='steelblue')
+        axes[0].set_ylabel(y_name, color='steelblue')
         
-        axes[1].plot(x_var,ACmotion, color='red')
-        axes[1].tick_params(axis='y', colors='red')
-        axes[1].set_ylabel('AC motion',color='red')
+        axes[1].plot(x_var,ACrate, color='indianred')
+        axes[1].tick_params(axis='y', colors='indianred')
+        axes[1].set_ylabel('AC motion',color='indianred')
         
         plt.savefig(dir_name+'/ACmotionVS'+y_name+'.png')
         plt.close()
@@ -228,12 +230,12 @@ class FrequencyAnalysis(object):
     #analysing ROI moments
         hours=(obs.timestamp-self.wrapper.observations[0].timestamp)*1.0/(60*60*1000*1000*1000)
         area_roi,aspect_roi,R,third_moment,uniformity=self.improc.ROI_analyseMoments(ROI)
-        fp.write('%d %.6f %d %d %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,area_roi,aspect_roi,R,third_moment,uniformity))
+        fp.write('%d %.6f %f %d %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,area_roi,aspect_roi,R,third_moment,uniformity))
         
     def writeROIcooccurrence(self,ROI,obs,fp):
         hours=(obs.timestamp-self.wrapper.observations[0].timestamp)*1.0/(60*60*1000*1000*1000)
         contrast, dissimilarity, homogeneity, energy, correlation, ASM=self.improc.ROI_analyseCooccurrenceMatrix(ROI,distances=[1],angles=[0])
-        fp.write('%d %.6f %d %6f %.6f %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,contrast, dissimilarity, homogeneity, energy, correlation, ASM))
+        fp.write('%d %.6f %f %6f %.6f %.6f %.6f %.6f %.6f\n' % (obs.id,hours,obs.ACrate,contrast, dissimilarity, homogeneity, energy, correlation, ASM))
         
     def experiment(self,collection,x_dim,y_dim):
         txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
@@ -261,7 +263,7 @@ class FrequencyAnalysis(object):
           
     def experiment_with_resize_PCA(self, collection, x_dim, y_dim): 
         update_guess=10 # specify the n. of iteration after which start to update the guess, otherwise set to False
-        guess=[20000,x_dim/2,y_dim/2,x_dim,y_dim,0,0]
+        guess=[20000,x_dim/2,y_dim/2,x_dim,y_dim,0,1600]
         list_popt=[]
         if not os.path.exists(self.dir_name+'/PCAresults'):
             os.makedirs(self.dir_name+'/PCAresults')
@@ -275,6 +277,14 @@ class FrequencyAnalysis(object):
             img=o.window
             # interpolating image
             interp_img=self.improc.img_interpolateImage(img, x_dim, y_dim)
+            ms = cv2.moments(interp_img)
+            s_x=ms['mu02']
+            s_y=ms['mu20']
+            cov=[[s_x,ms['mu11']],[ms['mu11'],s_y]]
+            mu_x=ms['m10']/ms['m00']
+            mu_y=ms['m01']/ms['m00']
+            
+            '''
             # fitting the interpolated image wiht a 2D Gaussian function
             popt=self.improc.img_fitGaussian(img=interp_img, func=twoD_Gaussian, guess=guess)
             # popt = (amplitude,dx,dy,sigma_x,sigma_y,theta,offset)
@@ -284,9 +294,9 @@ class FrequencyAnalysis(object):
             mu_y=popt[2]
             s_x=popt[3]**2
             s_y=popt[4]**2
-    
+            '''
             # resizing the profile using PCA
-            resized_img=self.improc.img_resizeProfilePCA(interp_img, mu_x, mu_y, s_x, s_y, plot_results=True, it=ii, folder=self.dir_name+'/PCAresults')
+            resized_img=self.improc.img_resizeProfilePCA(interp_img, mu_x, mu_y, s_x, s_y, cov,plot_results=True, it=ii, folder=self.dir_name+'/PCAresults')
      
             if update_guess!=False:
                 if ii>update_guess:
@@ -344,5 +354,79 @@ class FrequencyAnalysis(object):
         
         print "Experiment successfully completed!"
         print 
+        
+    def polyfit_ACrate_ROIaspect(self, deg=3, x_dim=1800, y_dim=1200):
+        w=self.wrapper
+        ip=self.improc
+        l_aspect=[]
+        l_ACrate=[]
+        
+        for o in w.observations:
+            if o.ACrate>0:
+                interp_img=ip.img_interpolateImage(o.window, x_dim=x_dim, y_dim=y_dim)
+                res=ip.img_detectROI(interp_img, thr_factor=0.5, zero_padding=False)
+                roi=res[0]
+                h,wi=np.shape(roi)
+                aspect_roi=1.0*wi/h
+                l_ACrate.append(o.ACrate)
+                l_aspect.append(aspect_roi)
+                print o.id
+                
+            else:
+                print o.ACrate
+             
+        l_aspect=np.array(l_aspect)   
+        #smooth_aspect=smooth(l_aspect,3)   
+        z=np.polyfit(l_ACrate,l_aspect,deg=deg)
+        func_aspect=np.polyval(z,l_ACrate)
+        
+        dots,=plt.plot(l_ACrate,l_aspect,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
+        plt.xlabel('AC rate')
+        plt.ylabel('ROI aspect')
+        line,=plt.plot(l_ACrate,func_aspect, 'indianred')
+        plt.legend(handles=[dots,line], labels=['Data','Curve fit'])
+        plt.savefig(w.dir_name+'/ACrateROIaspect.png')
+        plt.close()
+        
+        return z
+    
+    def experiment_with_polyfit(self, collection, coeff, x_dim=1800, y_dim=1200):
+        bar=ChargingBar('Resizing and analysing images', max=len(collection))
+        lol=[]
+        l_ACrate=[]
+        l_hours=[]
+        ip=self.improc
+        txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
+        txt_file_moments = open(self.txt_moments,'w')
+        for o in collection:
+            if o.ACrate>0:
+                aspect_roi=np.polyval(coeff,o.ACrate)
+                resized_img=ip.img_resizeProfileROIaspect(o.window, aspect_roi, x_dim=x_dim, y_dim_=y_dim)
+                res=ip.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
+                if res==-1:
+                    print "ERROR!!"
+                    continue
+                ROI=res[0]
+                h,wi=np.shape(ROI)
+                aspect_roi=1.0*wi/h
+                if aspect_roi<3000000:
+                    lol.append(aspect_roi)
+                    l_ACrate.append(o.ACrate)
+                    hour=(o.timestamp-self.wrapper.observations[0].timestamp)*1.0/(60*60*1000*1000*1000)
+                    l_hours.append(hour)
+                    #print o.id
+                self.writeROImoments(ROI, o, txt_file_moments)
+                self.writeROIcooccurrence(ROI, o, txt_file_cooccurrence)
+            bar.next()
+        
+        dots,=plt.plot(l_ACrate,lol,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
+        plt.xlabel('AC rate')
+        plt.ylabel('ROI aspect')
+        line,=plt.plot([0,1],[1-1], color='indian red', linestyle='--')
+        plt.legend(handles=[dots,line], labels=['Shrinked ROIs','Ideal case'])
+        plt.savefig(self.wrapper.dir_name+'/ACrateROIaspect_shrinked.png')
+        plt.close()
+        
+        bar.finish()
         
         

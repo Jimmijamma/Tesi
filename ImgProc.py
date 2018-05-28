@@ -48,12 +48,11 @@ class ImgProc(object):
         fwhm_list=[] # points of the ROI. For each row: (row_coordinate,first_column,last_column)
         idy=0
         threshold=np.nanmax(im)*thr_factor # FWHM threshold
-        for row in im:
-            idx=0
+        for idy,img_row in enumerate(im):
             flagx=False
             flagy=False
             first=second=None
-            for pix in row:           
+            for idx,pix in enumerate(img_row):           
                 if pix>threshold and flagx==False:
                     first=idx
                     flagx=True
@@ -61,18 +60,16 @@ class ImgProc(object):
                     second=idx-1
                     flagx=False
                     flagy=True
-                    break
-                idx+=1                
+                    break             
             if first!=None and second!=None:
                 fwhm_list.append([idy,first,second])
-            idy+=1
             
         # defining ROI
         rows_list=[row[0] for row in fwhm_list]
         row_interval=[np.min(rows_list),np.max(rows_list)]
         col_interval=[np.min([row[1] for row in fwhm_list]),np.max([row[2] for row in fwhm_list])]
         
-        ROI=im[row_interval[0]:row_interval[1],col_interval[0]:col_interval[1]]
+        ROI=im[row_interval[0]:row_interval[1]+1,col_interval[0]:col_interval[1]+1]
         if zero_padding==True:
             low_values_flags = ROI < threshold  # Where values are low
             ROI[low_values_flags] = 0
@@ -86,8 +83,8 @@ class ImgProc(object):
         y = np.linspace(start=0, stop=y_lim-1, num=y_lim)
         x, y = np.meshgrid(x, y)
         # constraints for fitting ((lower bounds),(upper bounds))
-        bounds=((0,0,0,0,0,0,-np.inf),(65536,x_lim-1,y_lim-1,np.inf,np.inf,0.5,np.inf))
-        popt, pcov = opt.curve_fit(func, (x, y), img.ravel(), p0=guess, bounds=bounds,maxfev=1000000)
+        bounds=((0,0,0,0,0,0,0),(65536,x_lim-1,y_lim-1,np.inf,np.inf,0.1,5000))
+        popt, pcov = opt.curve_fit(func, (x, y), img.ravel(), p0=guess, bounds=bounds,maxfev=10000)
         return popt
     
     
@@ -101,7 +98,7 @@ class ImgProc(object):
         return interp_image
     
 
-    def img_resizeProfilePCA(self,image,mu_x,mu_y,s_x,s_y,plot_results=False,it=1,folder=''):
+    def img_resizeProfilePCA(self,image,mu_x,mu_y,s_x,s_y,cov,plot_results=False,it=1,folder=''):
         '''
         Method for shrinking PSF profiles using PCA
         '''
@@ -112,13 +109,15 @@ class ImgProc(object):
         #corr=np.corrcoef(X, Y)
         #corr=corr[1,0]
         #cov= [[s_x,corr*np.sqrt(s_x)*np.sqrt(s_y)],[corr*np.sqrt(s_x)*np.sqrt(s_y),s_y]]
-        cov= [[s_x,0],[0,s_y]] # covariance matrix
+        #cov= [[s_x,0],[0,s_y]] # covariance matrix
+
         L,U=np.linalg.eigh(cov)
         z1=U[0,0]*(X-mu_x)+U[0,1]*(Y-mu_y) 
         z2=U[1,0]*(X-mu_x)+U[1,1]*(Y-mu_y)
         
         L[1]=L[1]/L[0]
         L[0]=1
+        
         
         w1,w2=(z1/np.sqrt(L[0]))+mu_x,(z2/np.sqrt(L[1]))+mu_y # new sets of coordinates 
         
