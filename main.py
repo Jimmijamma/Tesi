@@ -10,10 +10,12 @@ from Wrapper import Wrapper
 from FrequencyAnalysis import FrequencyAnalysis
 from ImgProc import ImgProc
 import numpy as np
+import cv2
 from matplotlib import pyplot as plt
 from matplotlib import figure
 from scipy.optimize import curve_fit
 from progress.bar import ChargingBar, Bar
+import png
 
 Z=[ 1.04477081, -1.57731015, -0.13579937, 1.10002968]
 
@@ -43,18 +45,61 @@ def smooth(y, box_pts):
     
 if __name__ == '__main__':
     
+    
     print
     w=Wrapper('CalWrapper.json')
     fa=FrequencyAnalysis(w)
     ip=fa.improc
+    '''
+    img=w.observations[0].window
+    img=ip.img_interpolateImage(img, 180, 120)
+    img = (img/256)
+    f=open('original.png', 'wb')
+    win=np.array(img)
+    cv2.imwrite('original.png',win)
     
-    z=fa.polyfit_ACrate_ROIaspect(w.observations, deg=3, x_dim=900, y_dim=600)
-    print z
+    img = cv2.imread('original.png')
+    res=cv2.imencode('.png',img)
+    cv2.imwrite('original.png',img)
+    img=res[1]
+    plt.savefig('hist.png')
+    ret, thresh = cv2.threshold(img,200 , 255, 0)
+    l_img=[]
+    for el in thresh:
+        l_img.append(el[0])
+    print l_img
+    cv2.imwrite('thresh.png',thresh)
+
+    im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    print contours
+   '''
     
-    fa.experiment_with_polyfit(w.observations, coeff=z, x_dim=900, y_dim=600)
+    
+    
+    # z=fa.polyfit_ACrate_ROIaspect(w.observations, deg=3, x_dim=180, y_dim=120)
+    z=Z
+    
+    fa=FrequencyAnalysis(w)
+    ip=fa.improc
+    collection=w.observations
+    fa.experiment_with_polyfit(collection, coeff=Z, x_dim=720, y_dim=480)
     fa.readResultsCooccurrence()
     fa.readResultsMoments()
     
+    
+    fa=FrequencyAnalysis(w)
+    ip=fa.improc
+    collection=w.observations
+    fa.experiment_with_resize_aspect(collection, x_dim=720, y_dim=480)
+    fa.readResultsCooccurrence()
+    fa.readResultsMoments()
+    
+    fa=FrequencyAnalysis(w)
+    ip=fa.improc
+    collection=w.observations
+    fa.experiment_with_resize_PCA(collection, x_dim=180, y_dim=120)
+    fa.readResultsCooccurrence()
+    fa.readResultsMoments()
     '''      
     fa.display_timedomain(l_hours, lol, 'ROI_aspect', l_ACrate, dir_name='.')
     '''        

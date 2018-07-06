@@ -184,6 +184,12 @@ class FrequencyAnalysis(object):
             self.display_timedomain(xvar,yvar,v,ACrate,dir_name)
             freq,spectrum=self.evaluate_fft(interp_x,interp_y,v,0.05,dir_name)
             
+            dots,=plt.plot(ACrate,yvar,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
+            plt.xlabel('AC rate')
+            plt.ylabel(v)
+            plt.savefig(dir_name+'/dots'+str(v)+'.png')
+            plt.close()
+            
         print "Results read and displayed successfully!"
         print
         
@@ -230,7 +236,12 @@ class FrequencyAnalysis(object):
             interp_x,interp_y=self.interpolate_measurements(xvar, yvar-np.mean(yvar))
             self.display_timedomain(xvar,yvar,v,ACrate,dir_name)
             freq,spectrum=self.evaluate_fft(interp_x,interp_y,v,0.05,dir_name)
-        
+            
+            dots,=plt.plot(ACrate,yvar,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
+            plt.xlabel('AC rate')
+            plt.ylabel(v)
+            plt.savefig(dir_name+'/dots'+str(v)+'.png')
+            plt.close()
         print "Results read and displayed successfully!"
         print
     
@@ -248,22 +259,24 @@ class FrequencyAnalysis(object):
     def experiment(self,collection,x_dim,y_dim):
         txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
         txt_file_moments = open(self.txt_moments,'w')
-        
+        bar=ChargingBar('Resizing and analysing images', max=len(collection))
         for ii,o in enumerate(collection):   
-            print "Resizing images, analysing and writing on disk: %d of %d" % (o.id,len(collection))  
-            # original image
-            image=o.window
-            # interpolated image
-            interp_image=self.improc.img_interpolateImage(image, x_dim, y_dim)
-            # detecting blob
-            ROI, row_interval, col_interval=self.improc.img_detectROI(interp_image, thr_factor=0.5, zero_padding=False)
-            
-            self.writeROImoments(ROI,o,txt_file_moments)
-            self.writeROIcooccurrence(ROI,o,txt_file_cooccurrence)
-            #print time.time()-t0
-        
+            #print "Resizing images, analysing and writing on disk: %d of %d" % (o.id,len(collection))
+            if o.ACrate>=0:  
+                # original image
+                image=o.window
+                # interpolated image
+                interp_image=self.improc.img_interpolateImage(image, x_dim, y_dim)
+                # detecting blob
+                ROI, row_interval, col_interval=self.improc.img_detectROI(interp_image, thr_factor=0.5, zero_padding=False)
+                
+                self.writeROImoments(ROI,o,txt_file_moments)
+                self.writeROIcooccurrence(ROI,o,txt_file_cooccurrence)
+                #print time.time()-t0
+            bar.next()
         txt_file_cooccurrence.close()   
         txt_file_moments.close()
+        bar.finish()
         
         print "Experiment successfully completed!"
         print
@@ -277,52 +290,55 @@ class FrequencyAnalysis(object):
             os.makedirs(self.dir_name+'/PCAresults')
         txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
         txt_file_moments = open(self.txt_moments,'w')
-        
+        bar=ChargingBar('Resizing and analysing images', max=len(collection))
         for ii, o in enumerate(collection):
-            print "Resizing images, analysing and writing on disk: %d of %d" % (o.id,len(collection))
-            t0 = time.time()
-               
-            img=o.window
-            # interpolating image
-            interp_img=self.improc.img_interpolateImage(img, x_dim, y_dim)
-            ms = cv2.moments(interp_img)
-            s_x=ms['mu02']
-            s_y=ms['mu20']
-            cov=[[s_x,ms['mu11']],[ms['mu11'],s_y]]
-            mu_x=ms['m10']/ms['m00']
-            mu_y=ms['m01']/ms['m00']
-            
-            '''
-            # fitting the interpolated image wiht a 2D Gaussian function
-            popt=self.improc.img_fitGaussian(img=interp_img, func=twoD_Gaussian, guess=guess)
-            # popt = (amplitude,dx,dy,sigma_x,sigma_y,theta,offset)
-            list_popt.append(popt)
-            
-            mu_x=popt[1]
-            mu_y=popt[2]
-            s_x=popt[3]**2
-            s_y=popt[4]**2
-            '''
-            # resizing the profile using PCA
-            resized_img=self.improc.img_resizeProfilePCA(interp_img, mu_x, mu_y, s_x, s_y, cov,plot_results=True, it=ii, folder=self.dir_name+'/PCAresults')
-     
-            if update_guess!=False:
-                if ii>update_guess:
-                    guess=np.mean(list_popt,axis=0)
+            #print "Resizing images, analysing and writing on disk: %d of %d" % (o.id,len(collection))
+            bar.next()
+            if o.ACrate>=0:
+                t0 = time.time()
+                   
+                img=o.window
+                # interpolating image
+                interp_img=self.improc.img_interpolateImage(img, x_dim, y_dim)
+                ms = cv2.moments(interp_img)
+                s_x=ms['mu02']
+                s_y=ms['mu20']
+                cov=[[s_x,ms['mu11']],[ms['mu11'],s_y]]
+                mu_x=ms['m10']/ms['m00']
+                mu_y=ms['m01']/ms['m00']
                 
-            res=self.improc.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
-            if res==-1:
-                print "ERROR detecting ROI!!"
-                continue
-            
-            ROI,row_interval,col_interval=res
-            
-            self.writeROImoments(ROI,o,txt_file_moments)
-            self.writeROIcooccurrence(ROI,o,txt_file_cooccurrence)
-            #print time.time()-t0
+                '''
+                # fitting the interpolated image wiht a 2D Gaussian function
+                popt=self.improc.img_fitGaussian(img=interp_img, func=twoD_Gaussian, guess=guess)
+                # popt = (amplitude,dx,dy,sigma_x,sigma_y,theta,offset)
+                list_popt.append(popt)
+                
+                mu_x=popt[1]
+                mu_y=popt[2]
+                s_x=popt[3]**2
+                s_y=popt[4]**2
+                '''
+                # resizing the profile using PCA
+                resized_img=self.improc.img_resizeProfilePCA(interp_img, mu_x, mu_y, s_x, s_y, cov,plot_results=True, it=ii, folder=self.dir_name+'/PCAresults')
+         
+                if update_guess!=False:
+                    if ii>update_guess:
+                        guess=np.mean(list_popt,axis=0)
+                    
+                res=self.improc.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
+                if res==-1:
+                    print "ERROR detecting ROI!!"
+                    continue
+                
+                ROI,row_interval,col_interval=res
+                
+                self.writeROImoments(ROI,o,txt_file_moments)
+                self.writeROIcooccurrence(ROI,o,txt_file_cooccurrence)
+                #print time.time()-t0
         
         txt_file_cooccurrence.close()   
         txt_file_moments.close()
+        bar.finish()
     
         print "Experiment successfully completed!"
         print  
@@ -332,34 +348,35 @@ class FrequencyAnalysis(object):
         
         txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
         txt_file_moments = open(self.txt_moments,'w')
-        
+        bar=ChargingBar('Resizing and analysing images', max=len(collection))
         for ii,o in enumerate(collection):
-            print "Resizing images, analysing and writing on disk: %d of %d" % (ii,len(collection))
-            interp_image=self.improc.img_interpolateImage(o.window,x_dim,y_dim)
-            res=self.improc.img_detectROI(interp_image, thr_factor=0.5, zero_padding=False)
-            if res==-1:
-                print "ERROR!!"
-                continue
-            ROI,row_interval,col_interval=res
-            roi=np.array(ROI)
-            height=np.shape(roi)[0]
-            width=np.shape(roi)[1]
-            aspect_roi=1.0*width/height
-            # resizing image
-            resized_img=self.improc.img_resizeProfileROIaspect(o.window, aspect_roi, x_dim=x_dim, y_dim_=y_dim)
-            # detecting image ROI
-            res=self.improc.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
-            if res==-1:
-                print "ERROR!!"
-                continue
-            ROI,row_interval,col_interval=res
-         
-            self.writeROImoments(ROI, o, txt_file_moments)
-            self.writeROIcooccurrence(ROI, o, txt_file_cooccurrence)
-         
+            #print "Resizing images, analysing and writing on disk: %d of %d" % (ii,len(collection))
+            if o.ACrate>=0:
+                interp_image=self.improc.img_interpolateImage(o.window,x_dim,y_dim)
+                res=self.improc.img_detectROI(interp_image, thr_factor=0.5, zero_padding=False)
+                if res==-1:
+                    print "ERROR!!"
+                    continue
+                ROI,row_interval,col_interval=res
+                roi=np.array(ROI)
+                height=np.shape(roi)[0]
+                width=np.shape(roi)[1]
+                aspect_roi=1.0*width/height
+                # resizing image
+                resized_img=self.improc.img_resizeProfileROIaspect(o.window, aspect_roi, x_dim=x_dim, y_dim_=y_dim)
+                # detecting image ROI
+                res=self.improc.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
+                if res==-1:
+                    print "ERROR!!"
+                    continue
+                ROI,row_interval,col_interval=res
+             
+                self.writeROImoments(ROI, o, txt_file_moments)
+                self.writeROIcooccurrence(ROI, o, txt_file_cooccurrence)
+            bar.next()
         txt_file_cooccurrence.close()   
         txt_file_moments.close()
-        
+        bar.finish()
         print "Experiment successfully completed!"
         print 
         
@@ -370,7 +387,7 @@ class FrequencyAnalysis(object):
         l_ACrate=[]
         bar=ChargingBar('Defining AC smearing function', max=len(collection))
         for o in collection:
-            if o.ACrate>0:
+            if o.ACrate>=0:
                 interp_img=ip.img_interpolateImage(o.window, x_dim=x_dim, y_dim=y_dim)
                 res=ip.img_detectROI(interp_img, thr_factor=0.5, zero_padding=False)
                 roi=res[0]
@@ -401,7 +418,7 @@ class FrequencyAnalysis(object):
         txt_file_cooccurrence = open(self.txt_cooccurrence,'w')
         txt_file_moments = open(self.txt_moments,'w')
         for o in collection:
-            if o.ACrate>0:
+            if o.ACrate>=0:
                 aspect_roi=np.polyval(coeff,o.ACrate)
                 resized_img=ip.img_resizeProfileROIaspect(o.window, aspect_roi, x_dim=x_dim, y_dim_=y_dim)
                 res=ip.img_detectROI(resized_img, thr_factor=0.5, zero_padding=False)
