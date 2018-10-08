@@ -26,7 +26,7 @@ class Observation(object):
     classdocs
     '''
 
-    def __init__(self, wrapper, id, window, gating, transitid, timestamp, ACmotion, ACrate, calCentroid_AC=None, calCentroid_AL=None):
+    def __init__(self, wrapper, id, window, integration_time, transitid, timestamp, day, ACmotion, ACrate, calCentroid_AC=None, calCentroid_AL=None):
         '''
         Constructor
         '''
@@ -39,10 +39,13 @@ class Observation(object):
         self.ccdStrip=wrapper.ccdStrip
         self.mag=wrapper.mag
         self.wavn=wrapper.wavn
-        self.gating=gating
+        self.integration_time=integration_time*1000
         self.timestamp=timestamp # ns
         self.transitid=transitid
         self.ACmotion=ACmotion
+        self.day_int=day[0]
+        self.day_float=day[1]
+        #print self.day_int+self.day_float
         if ACrate==None:
             ACrate=-1
         

@@ -44,7 +44,7 @@ class Wrapper(object):
         if fov == True:
             self.fov=1
         else:
-            self.fov=0
+            self.fov=2
         self.tdi_period = None
         self.observations=self.parseJSON(json_obj)
         
@@ -72,7 +72,7 @@ class Wrapper(object):
             win=np.array(obs['window'])
             calCentroid_AC=obs['calCentroidAC']/pix_size_AC+5.5
             calCentroid_AL=obs['calCentroidAL']/pix_size_AL+8.5
-            o = Observation(self, obs['id'], np.swapaxes(win,0,1), obs['gating'], obs['transitid'], obs['timestamp'], obs['ACmotion'],obs['ACrate'], calCentroid_AC, calCentroid_AL)
+            o = Observation(self, obs['id'], np.swapaxes(win,0,1), obs['integrationTime'], obs['transitid'], obs['timestamp'], obs['day'],obs['ACmotion'],obs['ACrate'], calCentroid_AC, calCentroid_AL)
             obs_list.append(o)
         return obs_list
         

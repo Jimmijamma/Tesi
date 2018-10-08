@@ -50,7 +50,19 @@ if __name__ == '__main__':
     w=Wrapper('CalWrapper.json')
     fa=FrequencyAnalysis(w)
     ip=fa.improc
+    
+    for o in w.observations:
+        f=open('images/'+str(o.id)+'.png', 'wb')
+        new_img=ip.img_interpolateImage(o.window, x_dim=1800, y_dim=1200, algorithm=cv2.INTER_AREA)
+        win = map(np.uint16,new_img)
+        writer = png.Writer(width=len(win[0]), height=len(win), bitdepth=16, greyscale=True)
+        writer.write(f, win)
+        f.close()
+        print o.id, o.ACrate, o.ACmotion
     '''
+    fa.readResultsCooccurrence('2018-09-11_13:27')
+    fa.readResultsMoments('2018-09-11_13:27')
+    
     img=w.observations[0].window
     img=ip.img_interpolateImage(img, 180, 120)
     img = (img/256)
@@ -75,7 +87,7 @@ if __name__ == '__main__':
    '''
     
     
-    
+    '''
     # z=fa.polyfit_ACrate_ROIaspect(w.observations, deg=3, x_dim=180, y_dim=120)
     z=Z
     
@@ -100,7 +112,7 @@ if __name__ == '__main__':
     fa.experiment_with_resize_PCA(collection, x_dim=180, y_dim=120)
     fa.readResultsCooccurrence()
     fa.readResultsMoments()
-    '''      
+     
     fa.display_timedomain(l_hours, lol, 'ROI_aspect', l_ACrate, dir_name='.')
     '''        
     '''

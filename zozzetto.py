@@ -29,6 +29,7 @@ if __name__ == '__main__':
     eta_list=[]
     AC_smearing_list=[]
     AL_smearing_list=[]
+    omega_list=[]
     for l in lines[1:]:
         values=np.array(l.split()).astype(float)
         # reading values
@@ -37,13 +38,14 @@ if __name__ == '__main__':
         sun_long=values[1]
         sun_velocity=values[2]
         Omega=values[3]
+        omega_list.append(Omega)
         d_omega=values[4]
         
         _z=S*sun_velocity
         wz=60 # arcsec/sec
         zeta=np.radians(0.36) # (AC offset) = distance (deg) from the centre of the FOV
         AL_offset=0 # = distance (deg) from the centre of the FOV
-        phi=np.radians(gamma+AL_offset) # celestial coordinate of the star
+        phi=np.radians(gamma*0.5+AL_offset) # celestial coordinate of the star
         
         _zeta=np.rad2deg(-_z*np.sin(Omega+phi))*3600000 # mas/sec
         _eta=np.rad2deg(_z*np.cos(Omega+phi)*np.tan(zeta))*3600000-wz # mas/sec

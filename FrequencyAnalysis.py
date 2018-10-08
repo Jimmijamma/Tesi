@@ -92,6 +92,7 @@ class FrequencyAnalysis(object):
         ax.plot(periods,spectrum, color='steelblue', lw=0.7)
         ax.set_xlabel('Period [h]')
         ax.set_ylabel('Amplitude')
+        ax.set_xlim(0,12)
         plt.ylim([None, max(spectrum)*1.1])
         
         bbox_props = dict(boxstyle='round', alpha=0.7, ec="b", lw=1, fc='white')
@@ -104,7 +105,7 @@ class FrequencyAnalysis(object):
                 size=10, bbox=bbox_props)
         
         plt.title("Periodicity of '%s' parameter" % param_name)
-        plt.savefig(dir_name+'/fft_'+param_name+'.png')
+        plt.savefig(dir_name+'/fft_'+param_name+'.eps')
         plt.close()
         
     def display_fft_freqs(self,freqs,spectrum,Ts,dir_name,param_name,peak_threshold=None):
@@ -125,7 +126,7 @@ class FrequencyAnalysis(object):
                 size=10, bbox=bbox_props)
         
         plt.title("Periodicity of '%s' parameter" % param_name)
-        plt.savefig(dir_name+'/fft_freqs_'+param_name+'.png')
+        plt.savefig(dir_name+'/fft_freqs_'+param_name+'.eps')
         plt.close()
     
     def display_timedomain(self,x_var,y_var,y_name,ACrate, dir_name):
@@ -147,7 +148,7 @@ class FrequencyAnalysis(object):
         axes[1].tick_params(axis='y', colors='indianred')
         axes[1].set_ylabel('AC rate')
         
-        plt.savefig(dir_name+'/ACrateVS'+y_name+'.png')
+        plt.savefig(dir_name+'/ACrateVS'+y_name+'.eps', bbox_inches='tight')
         plt.close()
         
     def readResultsMoments(self, timestamp=None):
@@ -187,7 +188,7 @@ class FrequencyAnalysis(object):
             dots,=plt.plot(ACrate,yvar,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
             plt.xlabel('AC rate')
             plt.ylabel(v)
-            plt.savefig(dir_name+'/dots'+str(v)+'.png')
+            plt.savefig(dir_name+'/dots'+str(v)+'.eps')
             plt.close()
             
         print "Results read and displayed successfully!"
@@ -240,7 +241,7 @@ class FrequencyAnalysis(object):
             dots,=plt.plot(ACrate,yvar,color='steelblue',linestyle = 'None',marker='o',ms=0.6)
             plt.xlabel('AC rate')
             plt.ylabel(v)
-            plt.savefig(dir_name+'/dots'+str(v)+'.png')
+            plt.savefig(dir_name+'/dots'+str(v)+'.eps')
             plt.close()
         print "Results read and displayed successfully!"
         print
@@ -306,6 +307,7 @@ class FrequencyAnalysis(object):
                 cov=[[s_x,ms['mu11']],[ms['mu11'],s_y]]
                 mu_x=ms['m10']/ms['m00']
                 mu_y=ms['m01']/ms['m00']
+                
                 
                 '''
                 # fitting the interpolated image wiht a 2D Gaussian function

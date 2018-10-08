@@ -45,12 +45,11 @@ class ImgProc(object):
         Method for detecting the PSF profiles defining a ROI
         '''
         im=np.array(image)
-        fwhm_list=[] # points of the ROI. For each row: (row_coordinate,first_column,last_column)
+        fwhm_list=[] # For each row: (row_coordinate,first_column,last_column)
         idy=0
         threshold=np.nanmax(im)*thr_factor # FWHM threshold
         for idy,img_row in enumerate(im):
             flagx=False
-            flagy=False
             first=second=None
             for idx,pix in enumerate(img_row):           
                 if pix>threshold and flagx==False:
@@ -59,7 +58,6 @@ class ImgProc(object):
                 if pix<threshold and flagx==True:
                     second=idx-1
                     flagx=False
-                    flagy=True
                     break             
             if first!=None and second!=None:
                 fwhm_list.append([idy,first,second])
@@ -96,6 +94,26 @@ class ImgProc(object):
         y_dim=int(y_dim_*aspectROI)
         interp_image=cv2.resize(image,(x_dim,y_dim),interpolation=algorithm)
         return interp_image
+
+    def img_resizeProfileNSL(self,image,AC_sm,AL_sm,algorithm=cv2.INTER_LANCZOS4):
+        scale_factor=100
+        x_dim2=int(18*scale_factor)
+        y_dim2=int(12*scale_factor)
+        interp_image=cv2.resize(image,(x_dim2,y_dim2),interpolation=algorithm)
+        
+        shift_y=int((AC_sm*scale_factor)/176.8)
+        shift_x=int((AL_sm*scale_factor)/58.9)
+        print shift_y
+        print shift_x
+        shifted_im=np.roll(interp_image,shift_y,axis=0) # roll down/up
+        #new_img=np.repeat(interp_image, [3 for i in range(len(interp_image))], 0)
+        '''
+        if shift_y>0:
+            new_img=shifted_im[shift_y:]
+        else:
+            new_img=shifted_im[:shift_y]
+        '''
+        return shifted_im
     
 
     def img_resizeProfilePCA(self,image,mu_x,mu_y,s_x,s_y,cov,plot_results=False,it=1,folder=''):
@@ -117,7 +135,6 @@ class ImgProc(object):
         
         L[1]=L[1]/L[0]
         L[0]=1
-        
         
         w1,w2=(z1/np.sqrt(L[0]))+mu_x,(z2/np.sqrt(L[1]))+mu_y # new sets of coordinates 
         
